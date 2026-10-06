@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Expose ASP.NET Core minimal APIs as MCP tools, with the safety rails an agent-facing API needs.</Description>
+    <PackageTags>mcp;model-context-protocol;aspnetcore;minimal-api;ai-agents</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol.AspNetCore" />
+  </ItemGroup>
+</Project>

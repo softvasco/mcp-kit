@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\samples\McpKit.Sample\McpKit.Sample.csproj" />
+    <ProjectReference Include="..\..\src\McpKit\McpKit.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="ModelContextProtocol" />
+  </ItemGroup>
+</Project>
