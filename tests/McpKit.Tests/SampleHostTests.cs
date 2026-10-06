@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
@@ -28,8 +29,7 @@ public class SampleHostTests
     [Fact]
     public async Task A_tool_call_runs_against_the_host_services()
     {
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(host =>
-            host.ConfigureServices(services => services.AddSingleton<TimeProvider>(new FakeTimeProvider(Noon))));
+        await using var factory = Host(services => services.AddSingleton<TimeProvider>(new FakeTimeProvider(Noon)));
         await using var client = await Connect(factory);
 
         var result = await client.CallToolAsync("utc_now", cancellationToken: Token);
@@ -42,17 +42,25 @@ public class SampleHostTests
     [Fact]
     public async Task The_endpoint_path_is_configurable()
     {
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(host =>
-            host.ConfigureServices(services => services.AddSingleton(new McpKitOptions { Path = "/agents" })));
+        await using var factory = Host(services => services.AddSingleton(new McpKitOptions { Path = "/agents" }));
         await using var client = await Connect(factory, "/agents");
 
         Assert.NotEmpty(await client.ListToolsAsync(cancellationToken: Token));
     }
 
+    private static WebApplicationFactory<Program> Host(Action<IServiceCollection> services) => new SampleHost(services);
+
     private static async Task<McpClient> Connect(WebApplicationFactory<Program> factory, string path = "/mcp")
     {
         var http = factory.CreateClient();
         var options = new HttpClientTransportOptions { Endpoint = new Uri(http.BaseAddress!, path) };
-        return await McpClient.CreateAsync(new HttpClientTransport(options, http), cancellationToken: Token);
+        // the transport owns the client, so disposing the McpClient disposes it too
+        var transport = new HttpClientTransport(options, http, ownsHttpClient: true);
+        return await McpClient.CreateAsync(transport, cancellationToken: Token);
+    }
+
+    private sealed class SampleHost(Action<IServiceCollection> services) : WebApplicationFactory<Program>
+    {
+        protected override void ConfigureWebHost(IWebHostBuilder builder) => builder.ConfigureServices(services);
     }
 }

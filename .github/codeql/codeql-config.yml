@@ -1,0 +1,4 @@
+# generated code (System.Text.Json, xunit entry points) is not ours to fix
+paths-ignore:
+  - "**/obj/**"
+  - "**/bin/**"
