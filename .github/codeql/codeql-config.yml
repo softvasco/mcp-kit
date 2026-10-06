@@ -2,3 +2,9 @@
 paths-ignore:
   - "**/obj/**"
   - "**/bin/**"
+# path filters don't drop C# results from obj, and these two rules only ever fire on generated code
+query-filters:
+  - exclude:
+      id: cs/useless-cast-to-self
+  - exclude:
+      id: cs/missed-ternary-operator
