@@ -12,6 +12,7 @@ public static class McpKitServiceCollectionExtensions
         var options = new McpKitOptions();
         configure?.Invoke(options);
         services.AddSingleton(options);
+        services.AddSingleton<EndpointToolCatalog>();
 
         return services.AddMcpServer().WithHttpTransport(transport => transport.Stateless = options.Stateless);
     }
