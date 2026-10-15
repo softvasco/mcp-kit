@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using ModelContextProtocol.Server;
 
 namespace McpKit;
 
@@ -13,6 +15,17 @@ public static class McpKitServiceCollectionExtensions
         configure?.Invoke(options);
         services.AddSingleton(options);
         services.AddSingleton<EndpointToolCatalog>();
+
+        // runs when the server is first built, after the host has mapped its endpoints
+        services.AddSingleton<IConfigureOptions<McpServerOptions>>(provider =>
+            new ConfigureOptions<McpServerOptions>(server =>
+            {
+                server.ToolCollection ??= [];
+                foreach (var tool in provider.GetRequiredService<EndpointToolCatalog>().Discover())
+                {
+                    server.ToolCollection.Add(new EndpointMcpServerTool(tool));
+                }
+            }));
 
         return services.AddMcpServer().WithHttpTransport(transport => transport.Stateless = options.Stateless);
     }
