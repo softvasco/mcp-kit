@@ -106,8 +106,8 @@ public class EndpointToolInvokerTests
         await using var app = builder.Build();
         map(app);
 
-        var routes = (IEndpointRouteBuilder)app;
-        var tool = Assert.Single(new EndpointToolCatalog(new CompositeEndpointDataSource(routes.DataSources)).Discover());
+        using var endpoints = new CompositeEndpointDataSource(((IEndpointRouteBuilder)app).DataSources);
+        var tool = Assert.Single(new EndpointToolCatalog(endpoints).Discover());
         var args = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(arguments)!;
 
         await using var scope = app.Services.CreateAsyncScope();

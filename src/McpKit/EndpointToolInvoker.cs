@@ -49,12 +49,9 @@ public static class EndpointToolInvoker
 
         var request = context.Request;
         request.Method = tool.HttpMethod;
-        foreach (var name in routeParameters)
+        foreach (var (name, value) in arguments.Where(a => routeParameters.Contains(a.Key)))
         {
-            if (TryGet(arguments, name, out var value))
-            {
-                request.RouteValues[name] = AsText(value);
-            }
+            request.RouteValues[name] = AsText(value);
         }
 
         request.Path = BuildPath(endpoint.RoutePattern, request.RouteValues);
@@ -91,20 +88,6 @@ public static class EndpointToolInvoker
     private static bool CarriesBody(string method) =>
         HttpMethods.IsPost(method) || HttpMethods.IsPut(method) || HttpMethods.IsPatch(method);
 
-    private static bool TryGet(IReadOnlyDictionary<string, JsonElement> arguments, string name, out JsonElement value)
-    {
-        foreach (var (key, element) in arguments)
-        {
-            if (string.Equals(key, name, StringComparison.OrdinalIgnoreCase))
-            {
-                value = element;
-                return true;
-            }
-        }
-
-        value = default;
-        return false;
-    }
 
     private static string AsText(JsonElement value) =>
         value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText();

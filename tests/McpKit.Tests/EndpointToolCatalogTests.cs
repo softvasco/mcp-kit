@@ -91,7 +91,7 @@ public class EndpointToolCatalogTests
     {
         using var app = WebApplication.CreateBuilder().Build();
         map(app);
-        var routes = (IEndpointRouteBuilder)app;
-        return new EndpointToolCatalog(new CompositeEndpointDataSource(routes.DataSources)).Discover();
+        using var endpoints = new CompositeEndpointDataSource(((IEndpointRouteBuilder)app).DataSources);
+        return new EndpointToolCatalog(endpoints).Discover();
     }
 }
