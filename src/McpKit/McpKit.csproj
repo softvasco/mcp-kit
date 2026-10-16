@@ -9,4 +9,7 @@
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol.AspNetCore" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="McpKit.Tests" />
+  </ItemGroup>
 </Project>
