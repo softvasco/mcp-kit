@@ -5,13 +5,13 @@
 
 Expose ASP.NET Core minimal APIs as MCP tools, with the safety rails an agent-facing API needs. Built on the official [ModelContextProtocol C# SDK](https://github.com/modelcontextprotocol/csharp-sdk).
 
-Work in progress. Today it is a thin host and a test harness; turning existing endpoints into tools is next.
+Work in progress. Endpoints marked with `.AsMcpTool()` are served as tools today, with input schemas built from their route, query and body types. Read-only defaults, authorization and confirmation for write tools are next. I'm writing it up as a series: [part 1](https://softvasco.github.io/2026/10/when-an-ai-agent-calls-your-dotnet-api/) lists the problems.
 
 ## Why
 
 Most of the APIs that an AI agent should be able to call already exist. They have route handlers, request types, validation, auth, and a team that owns them. Writing a second set of tool classes by hand for MCP means two definitions of the same operation that drift apart, and tools that quietly skip the auth and validation the HTTP endpoint had.
 
-McpKit reads what ASP.NET Core already knows about an endpoint (route, parameters, request type, metadata) and publishes it as an MCP tool. Nothing is exposed unless the endpoint opts in, tools are read-only unless marked otherwise, and the tool goes through the same authorization as the endpoint.
+McpKit reads what ASP.NET Core already knows about an endpoint (route, parameters, request type, metadata) and publishes it as an MCP tool. Nothing is exposed unless the endpoint opts in. A tool call runs the endpoint's own request delegate in-process, so binding, filters and validation are the same as over HTTP, and errors come back as the endpoint's problem details. Until McpKit checks authorization itself, it refuses to run endpoints that require it.
 
 ## How it fits
 
@@ -29,14 +29,24 @@ flowchart LR
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddMcpKit().WithTools<ClockTools>();
+builder.Services.AddMcpKit();
 
 var app = builder.Build();
+
+app.MapPost("/accounts/{id}/deposits", (string id, Deposit deposit) => Results.Ok(new { id, deposit.Amount }))
+    .WithName("deposit")
+    .WithSummary("Deposit money into an account")
+    .AsMcpTool();
+
 app.MapMcpKit();
 app.Run();
+
+record Deposit(decimal Amount, string Currency);
 ```
 
-`AddMcpKit` registers the MCP server with the streamable HTTP transport, stateless by default so the host scales out like any other API. `MapMcpKit` maps it at `/mcp` (change it with `options.Path`). The sample in [samples/McpKit.Sample](samples/McpKit.Sample) is exactly this, with one tool that returns the server time.
+The tool is called `deposit`, and its input schema lists `id`, `amount` and `currency`, all required because none of them has a default. Tools written by hand with the SDK still work: `AddMcpKit()` returns the SDK's builder, so `.WithTools<T>()` is there too.
+
+`AddMcpKit` registers the MCP server with the streamable HTTP transport, stateless by default so the host scales out like any other API. `MapMcpKit` maps it at `/mcp` (change it with `options.Path`). The sample in [samples/McpKit.Sample](samples/McpKit.Sample) has one hand-written tool that returns the server time.
 
 To run it and connect from any MCP client:
 
