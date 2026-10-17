@@ -12,7 +12,7 @@ public class EndpointToolsOverMcpTests
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Marked_endpoints_are_listed_with_their_route_parameters()
+    public async Task Marked_endpoints_are_listed_with_route_and_body_arguments()
     {
         await using var app = await StartHost();
         await using var client = await Connect(app);
@@ -21,7 +21,7 @@ public class EndpointToolsOverMcpTests
 
         var tool = Assert.Single(tools, t => t.Name == "deposit");
         Assert.Equal("Deposit money into an account", tool.Description);
-        Assert.Equal("id", Assert.Single(tool.JsonSchema.GetProperty("required").EnumerateArray()).GetString());
+        Assert.Equal(["amount", "id"], tool.JsonSchema.GetProperty("required").EnumerateArray().Select(r => r.GetString()).Order(StringComparer.Ordinal));
         Assert.DoesNotContain(tools, t => t.Name == "close_account");
     }
 

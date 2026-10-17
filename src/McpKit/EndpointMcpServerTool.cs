@@ -12,7 +12,7 @@ internal sealed class EndpointMcpServerTool(EndpointTool tool) : McpServerTool
     {
         Name = tool.Name,
         Description = tool.Description,
-        InputSchema = InputSchema(tool),
+        InputSchema = ToolInputSchema.For(tool.Endpoint),
     };
 
     public override IReadOnlyList<object> Metadata => [.. tool.Endpoint.Metadata];
@@ -34,19 +34,5 @@ internal sealed class EndpointMcpServerTool(EndpointTool tool) : McpServerTool
             Content = [new TextContentBlock { Text = response.Body }],
             IsError = !response.IsSuccess,
         };
-    }
-
-    // route parameters are the only arguments known for sure until schemas come from request types
-    private static JsonElement InputSchema(EndpointTool tool)
-    {
-        var routeParameters = tool.Endpoint.RoutePattern.Parameters.Select(p => p.Name).ToArray();
-        var schema = new
-        {
-            type = "object",
-            properties = routeParameters.ToDictionary(name => name, _ => new { type = "string" }),
-            required = routeParameters,
-        };
-
-        return JsonSerializer.SerializeToElement(schema);
     }
 }
