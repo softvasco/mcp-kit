@@ -1,5 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 
 namespace McpKit.Tests;
@@ -73,6 +75,47 @@ public class ToolInputSchemaTests
         var schema = SchemaOf(app => app.MapGet("/accounts/{id}", (string id) => id));
 
         Assert.Equal(["id"], schema.GetProperty("properties").EnumerateObject().Select(p => p.Name));
+    }
+
+    [Fact]
+    public void Query_parameters_of_a_get_become_arguments()
+    {
+        var schema = SchemaOf(app => app.MapGet("/accounts/{id}/entries", (string id, int? limit, string? cursor) => id));
+
+        var properties = schema.GetProperty("properties");
+        Assert.Equal("integer", TypeOf(properties.GetProperty("limit")));
+        Assert.Equal("string", TypeOf(properties.GetProperty("cursor")));
+        Assert.Equal(["id"], Required(schema));
+    }
+
+    [Fact]
+    public void A_query_parameter_without_a_default_is_required()
+    {
+        var schema = SchemaOf(app => app.MapGet("/statements", (int year, string format = "pdf") => year));
+
+        Assert.Equal(["year"], Required(schema));
+        Assert.True(schema.GetProperty("properties").TryGetProperty("format", out _));
+    }
+
+    [Fact]
+    public void A_renamed_query_parameter_uses_its_query_name()
+    {
+        var schema = SchemaOf(app => app.MapGet("/entries", ([FromQuery(Name = "page_size")] int? pageSize) => pageSize));
+
+        Assert.Equal(["page_size"], schema.GetProperty("properties").EnumerateObject().Select(p => p.Name));
+    }
+
+    [Fact]
+    public void Services_headers_and_the_request_itself_are_not_arguments()
+    {
+        var schema = SchemaOf(app => app.MapGet("/search", (
+            string q,
+            [FromHeader(Name = "X-Tenant")] string? tenant,
+            [FromServices] TimeProvider time,
+            HttpContext context,
+            CancellationToken cancellationToken) => q));
+
+        Assert.Equal(["q"], schema.GetProperty("properties").EnumerateObject().Select(p => p.Name));
     }
 
     private static JsonElement SchemaOf(Func<WebApplication, RouteHandlerBuilder> map)

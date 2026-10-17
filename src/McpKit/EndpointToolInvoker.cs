@@ -85,9 +85,11 @@ public static class EndpointToolInvoker
         return new EndpointToolResponse(context.Response.StatusCode, context.Response.ContentType, Encoding.UTF8.GetString(body.ToArray()));
     }
 
+    internal static bool CarriesBody(RouteEndpoint endpoint) =>
+        endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods is [var method, ..] && CarriesBody(method);
+
     private static bool CarriesBody(string method) =>
         HttpMethods.IsPost(method) || HttpMethods.IsPut(method) || HttpMethods.IsPatch(method);
-
 
     private static string AsText(JsonElement value) =>
         value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText();
