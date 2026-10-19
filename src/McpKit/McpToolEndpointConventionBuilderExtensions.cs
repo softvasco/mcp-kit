@@ -11,4 +11,12 @@ public static class McpToolEndpointConventionBuilderExtensions
         ArgumentNullException.ThrowIfNull(builder);
         return builder.WithMetadata(new McpToolMetadata(name));
     }
+
+    /// <summary>Adds an optional tool argument that the endpoint gets as a request header.</summary>
+    public static TBuilder WithMcpToolHeader<TBuilder>(this TBuilder builder, string header, string argument, string description)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.WithMetadata(new McpToolHeaderMetadata(header, argument, description));
+    }
 }
