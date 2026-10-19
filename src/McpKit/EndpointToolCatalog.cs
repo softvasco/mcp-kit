@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Routing;
 
@@ -36,7 +37,16 @@ public sealed class EndpointToolCatalog(EndpointDataSource endpoints)
             throw new InvalidOperationException($"Endpoint '{route}' is marked as a tool but maps {methods.Count} HTTP methods; tools need exactly one.");
         }
 
-        var name = endpoint.Metadata.GetMetadata<McpToolMetadata>()!.Name
+        var marker = endpoint.Metadata.GetMetadata<McpToolMetadata>()!;
+
+        // the verb is the only hint we have; a POST behind AsMcpTool is almost always a mistake
+        if (!marker.ChangesState && !HttpMethods.IsGet(methods[0]) && !HttpMethods.IsHead(methods[0]))
+        {
+            throw new InvalidOperationException(
+                $"Endpoint '{methods[0]} {route}' changes state, so it can't be a read-only tool. Use AsMcpWriteTool if agents should call it.");
+        }
+
+        var name = marker.Name
             ?? endpoint.Metadata.GetMetadata<IEndpointNameMetadata>()?.EndpointName
             ?? throw new InvalidOperationException(
                 $"Endpoint '{methods[0]} {route}' is marked as a tool but has no name. Add WithName or pass a name to AsMcpTool.");
@@ -44,6 +54,6 @@ public sealed class EndpointToolCatalog(EndpointDataSource endpoints)
         var description = endpoint.Metadata.GetMetadata<IEndpointSummaryMetadata>()?.Summary
             ?? endpoint.Metadata.GetMetadata<IEndpointDescriptionMetadata>()?.Description;
 
-        return new EndpointTool(JsonNamingPolicy.SnakeCaseLower.ConvertName(name), description, methods[0], endpoint);
+        return new EndpointTool(JsonNamingPolicy.SnakeCaseLower.ConvertName(name), description, methods[0], endpoint, marker.ChangesState);
     }
 }

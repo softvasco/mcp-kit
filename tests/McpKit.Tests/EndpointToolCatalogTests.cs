@@ -53,7 +53,7 @@ public class EndpointToolCatalogTests
         var tools = Discover(app =>
         {
             var accounts = app.MapGroup("/accounts");
-            accounts.MapPost("/{id}/deposits", (Guid id) => id).WithName("Deposit").AsMcpTool();
+            accounts.MapPost("/{id}/deposits", (Guid id) => id).WithName("Deposit").AsMcpWriteTool();
         });
 
         Assert.Equal("/accounts/{id}/deposits", Assert.Single(tools).RoutePattern);
@@ -85,6 +85,28 @@ public class EndpointToolCatalogTests
     {
         Assert.Throws<InvalidOperationException>(() => Discover(app =>
             app.MapMethods("/accounts/{id}", [HttpMethods.Put, HttpMethods.Patch], (Guid id) => id).WithName("Update").AsMcpTool()));
+    }
+
+    [Fact]
+    public void A_post_marked_as_a_read_only_tool_fails_at_discovery()
+    {
+        var error = Assert.Throws<InvalidOperationException>(() => Discover(app =>
+            app.MapPost("/accounts/{id}/deposits", (Guid id) => id).WithName("Deposit").AsMcpTool()));
+
+        Assert.Contains("AsMcpWriteTool", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_write_tool_says_it_changes_state()
+    {
+        var tools = Discover(app =>
+        {
+            app.MapGet("/accounts/{id}", (Guid id) => id).WithName("GetAccount").AsMcpTool();
+            app.MapDelete("/accounts/{id}", (Guid id) => id).WithName("CloseAccount").AsMcpWriteTool();
+        });
+
+        Assert.False(Assert.Single(tools, t => t.Name == "get_account").ChangesState);
+        Assert.True(Assert.Single(tools, t => t.Name == "close_account").ChangesState);
     }
 
     private static IReadOnlyList<EndpointTool> Discover(Action<WebApplication> map)

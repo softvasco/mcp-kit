@@ -5,7 +5,7 @@
 
 Expose ASP.NET Core minimal APIs as MCP tools, with the safety rails an agent-facing API needs. Built on the official [ModelContextProtocol C# SDK](https://github.com/modelcontextprotocol/csharp-sdk).
 
-Work in progress. Endpoints marked with `.AsMcpTool()` are served as tools today, with input schemas built from their route, query and body types. Read-only defaults, authorization and confirmation for write tools are next. I'm writing it up as a series: [part 1](https://softvasco.github.io/2026/10/when-an-ai-agent-calls-your-dotnet-api/) lists the problems.
+Work in progress. Endpoints marked with `.AsMcpTool()` or `.AsMcpWriteTool()` are served as tools today, with input schemas built from their route, query and body types, and only reads are served unless the host allows writes. Authorization and confirmation for write tools are next. I'm writing it up as a series: [part 1](https://softvasco.github.io/2026/10/when-an-ai-agent-calls-your-dotnet-api/) lists the problems.
 
 ## Why
 
@@ -29,14 +29,14 @@ flowchart LR
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddMcpKit();
+builder.Services.AddMcpKit(options => options.AllowWriteTools = true);
 
 var app = builder.Build();
 
 app.MapPost("/accounts/{id}/deposits", (string id, Deposit deposit) => Results.Ok(new { id, deposit.Amount }))
     .WithName("deposit")
     .WithSummary("Deposit money into an account")
-    .AsMcpTool();
+    .AsMcpWriteTool();
 
 app.MapMcpKit();
 app.Run();
@@ -44,12 +44,14 @@ app.Run();
 record Deposit(decimal Amount, string Currency);
 ```
 
-The tool is called `deposit`, and its input schema lists `id`, `amount` and `currency`, all required because none of them has a default. Tools written by hand with the SDK still work: `AddMcpKit()` returns the SDK's builder, so `.WithTools<T>()` is there too.
+The tool is called `deposit`, and its input schema lists `id`, `amount` and `currency`, all required because none of them has a default.
+
+A deposit changes state, so it takes two opt-ins: `AsMcpWriteTool()` on the endpoint and `AllowWriteTools` on the host. Without the host setting it isn't listed at all, and `AsMcpTool()` on a POST, PUT, PATCH or DELETE fails at startup. Every tool also carries `readOnlyHint`, so a client can tell reads from writes ([ADR 0004](docs/adr/0004-read-only-by-default.md)). Tools written by hand with the SDK still work: `AddMcpKit()` returns the SDK's builder, so `.WithTools<T>()` is there too.
 
 Headers that a filter reads from the request don't show up in a handler's parameters, so declare them. With this, the `deposit` tool gets an optional `idempotency_key` argument and the endpoint sees it as the `Idempotency-Key` header:
 
 ```csharp
-    .AsMcpTool()
+    .AsMcpWriteTool()
     .WithMcpToolHeader("Idempotency-Key", "idempotency_key",
         "A new value for each deposit. Send the same value again if you retry it, so it runs once.");
 ```

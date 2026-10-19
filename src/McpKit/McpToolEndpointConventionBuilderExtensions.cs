@@ -4,12 +4,20 @@ namespace McpKit;
 
 public static class McpToolEndpointConventionBuilderExtensions
 {
-    /// <summary>Publishes this endpoint as an MCP tool. Endpoints without it are never exposed.</summary>
+    /// <summary>Publishes this GET endpoint as a read-only tool. Others are never exposed.</summary>
     public static TBuilder AsMcpTool<TBuilder>(this TBuilder builder, string? name = null)
         where TBuilder : IEndpointConventionBuilder
     {
         ArgumentNullException.ThrowIfNull(builder);
         return builder.WithMetadata(new McpToolMetadata(name));
+    }
+
+    /// <summary>Publishes this endpoint as a tool that changes state.</summary>
+    public static TBuilder AsMcpWriteTool<TBuilder>(this TBuilder builder, string? name = null)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.WithMetadata(new McpToolMetadata(name, changesState: true));
     }
 
     /// <summary>Adds an optional tool argument that the endpoint gets as a request header.</summary>
