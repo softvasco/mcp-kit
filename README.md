@@ -46,6 +46,14 @@ record Deposit(decimal Amount, string Currency);
 
 The tool is called `deposit`, and its input schema lists `id`, `amount` and `currency`, all required because none of them has a default. Tools written by hand with the SDK still work: `AddMcpKit()` returns the SDK's builder, so `.WithTools<T>()` is there too.
 
+Headers that a filter reads from the request don't show up in a handler's parameters, so declare them. With this, the `deposit` tool gets an optional `idempotency_key` argument and the endpoint sees it as the `Idempotency-Key` header:
+
+```csharp
+    .AsMcpTool()
+    .WithMcpToolHeader("Idempotency-Key", "idempotency_key",
+        "A new value for each deposit. Send the same value again if you retry it, so it runs once.");
+```
+
 `AddMcpKit` registers the MCP server with the streamable HTTP transport, stateless by default so the host scales out like any other API. `MapMcpKit` maps it at `/mcp` (change it with `options.Path`). The sample in [samples/McpKit.Sample](samples/McpKit.Sample) has one hand-written tool that returns the server time.
 
 To run it and connect from any MCP client:

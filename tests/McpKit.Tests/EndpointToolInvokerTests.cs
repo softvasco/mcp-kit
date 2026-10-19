@@ -77,6 +77,49 @@ public class EndpointToolInvokerTests
     }
 
     [Fact]
+    public async Task A_header_argument_is_sent_as_the_header_and_left_out_of_the_body()
+    {
+        var response = await Invoke(
+            app => app.MapPost("/accounts/{id:guid}/deposits", (Guid id, Deposit deposit, HttpRequest request) =>
+                    new { key = request.Headers["Idempotency-Key"].ToString(), deposit.Amount })
+                .WithName("Deposit").AsMcpTool()
+                .WithMcpToolHeader("Idempotency-Key", "idempotency_key", "reuse it on a retry"),
+            """{ "id": "5f0e7c38-62a4-4c39-9d43-0b8f6f2b9a10", "amount": 5, "currency": "EUR", "idempotency_key": "dep-1" }""");
+
+        Assert.Equal(StatusCodes.Status200OK, response.StatusCode);
+        var body = JsonDocument.Parse(response.Body).RootElement;
+        Assert.Equal("dep-1", body.GetProperty("key").GetString());
+        Assert.Equal(5m, body.GetProperty("amount").GetDecimal());
+    }
+
+    [Fact]
+    public async Task A_header_argument_left_out_sends_no_header()
+    {
+        var response = await Invoke(
+            app => app.MapPost("/accounts/{id:guid}/deposits", (Guid id, Deposit deposit, HttpRequest request) =>
+                    new { present = request.Headers.ContainsKey("Idempotency-Key") })
+                .WithName("Deposit").AsMcpTool()
+                .WithMcpToolHeader("Idempotency-Key", "idempotency_key", "reuse it on a retry"),
+            """{ "id": "5f0e7c38-62a4-4c39-9d43-0b8f6f2b9a10", "amount": 5, "currency": "EUR" }""");
+
+        Assert.False(JsonDocument.Parse(response.Body).RootElement.GetProperty("present").GetBoolean());
+    }
+
+    [Fact]
+    public async Task A_filter_sees_the_header_argument_on_a_get()
+    {
+        var response = await Invoke(
+            app => app.MapGet("/accounts/{id:guid}", (Guid id, int? take) => new { take })
+                .AddEndpointFilter(async (context, next) =>
+                    context.HttpContext.Request.Headers["X-Tenant"] == "acme" ? await next(context) : Results.Forbid())
+                .WithName("GetAccount").AsMcpTool()
+                .WithMcpToolHeader("X-Tenant", "tenant", "the tenant to read from"),
+            """{ "id": "5f0e7c38-62a4-4c39-9d43-0b8f6f2b9a10", "tenant": "acme" }""");
+
+        Assert.Equal(StatusCodes.Status200OK, response.StatusCode);
+    }
+
+    [Fact]
     public async Task The_handler_sees_the_caller_as_the_user()
     {
         var caller = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, "agent-7")], "test"));

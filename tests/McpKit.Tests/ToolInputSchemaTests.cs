@@ -118,6 +118,27 @@ public class ToolInputSchemaTests
         Assert.Equal(["q"], schema.GetProperty("properties").EnumerateObject().Select(p => p.Name));
     }
 
+    [Fact]
+    public void A_header_argument_is_an_optional_string_with_its_description()
+    {
+        var schema = SchemaOf(app => app.MapPost("/accounts/{id}/deposits", (string id, Deposit deposit) => id)
+            .WithMcpToolHeader("Idempotency-Key", "idempotency_key", "reuse it on a retry"));
+
+        var key = schema.GetProperty("properties").GetProperty("idempotency_key");
+        Assert.Equal("string", TypeOf(key));
+        Assert.Equal("reuse it on a retry", key.GetProperty("description").GetString());
+        Assert.DoesNotContain("idempotency_key", Required(schema));
+    }
+
+    [Fact]
+    public void A_header_argument_that_clashes_with_another_argument_fails_at_startup()
+    {
+        var error = Assert.Throws<InvalidOperationException>(() => SchemaOf(app => app.MapPost("/accounts/{id}/deposits", (string id, Deposit deposit) => id)
+            .WithMcpToolHeader("X-Currency", "currency", "the currency")));
+
+        Assert.Contains("currency", error.Message, StringComparison.Ordinal);
+    }
+
     private static JsonElement SchemaOf(Func<WebApplication, RouteHandlerBuilder> map)
     {
         using var app = WebApplication.CreateBuilder().Build();

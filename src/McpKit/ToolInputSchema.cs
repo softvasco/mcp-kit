@@ -66,6 +66,17 @@ internal static class ToolInputSchema
             }
         }
 
+        foreach (var header in endpoint.Metadata.GetOrderedMetadata<McpToolHeaderMetadata>())
+        {
+            if (properties.ContainsKey(header.Argument))
+            {
+                throw new InvalidOperationException(
+                    $"Endpoint '{endpoint.RoutePattern.RawText}' already has an argument '{header.Argument}', so it can't also carry the {header.Header} header.");
+            }
+
+            properties[header.Argument] = new JsonObject { ["type"] = "string", ["description"] = header.Description };
+        }
+
         var schema = new JsonObject
         {
             ["type"] = "object",

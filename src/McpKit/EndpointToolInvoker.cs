@@ -37,7 +37,8 @@ public static class EndpointToolInvoker
             ?? throw new InvalidOperationException($"Tool '{tool.Name}' has no request delegate.");
 
         var routeParameters = endpoint.RoutePattern.Parameters.Select(p => p.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var others = arguments.Where(a => !routeParameters.Contains(a.Key)).ToList();
+        var headers = endpoint.Metadata.GetOrderedMetadata<McpToolHeaderMetadata>().ToDictionary(h => h.Argument, h => h.Header, StringComparer.OrdinalIgnoreCase);
+        var others = arguments.Where(a => !routeParameters.Contains(a.Key) && !headers.ContainsKey(a.Key)).ToList();
 
         var context = new DefaultHttpContext
         {
@@ -55,6 +56,11 @@ public static class EndpointToolInvoker
         }
 
         request.Path = BuildPath(endpoint.RoutePattern, request.RouteValues);
+
+        foreach (var (argument, value) in arguments.Where(a => headers.ContainsKey(a.Key)))
+        {
+            request.Headers[headers[argument]] = AsText(value);
+        }
 
         if (CarriesBody(tool.HttpMethod))
         {
