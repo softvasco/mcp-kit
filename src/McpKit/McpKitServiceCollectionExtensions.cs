@@ -21,7 +21,8 @@ public static class McpKitServiceCollectionExtensions
             new ConfigureOptions<McpServerOptions>(server =>
             {
                 server.ToolCollection ??= [];
-                foreach (var tool in provider.GetRequiredService<EndpointToolCatalog>().Discover())
+                var tools = provider.GetRequiredService<EndpointToolCatalog>().Discover().Where(t => options.AllowWriteTools || !t.ChangesState);
+                foreach (var tool in tools)
                 {
                     server.ToolCollection.Add(new EndpointMcpServerTool(tool));
                 }

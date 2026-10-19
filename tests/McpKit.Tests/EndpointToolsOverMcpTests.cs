@@ -57,11 +57,34 @@ public class EndpointToolsOverMcpTests
         Assert.Equal("amount.not_positive", JsonDocument.Parse(text.Text).RootElement.GetProperty("code").GetString());
     }
 
-    private static async Task<WebApplication> StartHost()
+    [Fact]
+    public async Task Write_tools_are_not_listed_unless_the_host_allows_them()
+    {
+        await using var app = await StartHost(allowWriteTools: false);
+        await using var client = await Connect(app);
+
+        var tools = await client.ListToolsAsync(cancellationToken: Token);
+
+        Assert.Equal(["get_account"], tools.Select(t => t.Name));
+    }
+
+    [Fact]
+    public async Task Tools_say_whether_they_only_read()
+    {
+        await using var app = await StartHost();
+        await using var client = await Connect(app);
+
+        var tools = await client.ListToolsAsync(cancellationToken: Token);
+
+        Assert.True(Assert.Single(tools, t => t.Name == "get_account").ProtocolTool.Annotations?.ReadOnlyHint);
+        Assert.False(Assert.Single(tools, t => t.Name == "deposit").ProtocolTool.Annotations?.ReadOnlyHint);
+    }
+
+    private static async Task<WebApplication> StartHost(bool allowWriteTools = true)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
-        builder.Services.AddMcpKit();
+        builder.Services.AddMcpKit(options => options.AllowWriteTools = allowWriteTools);
 
         var app = builder.Build();
         app.MapPost("/accounts/{id}/deposits", (string id, DepositRequest deposit) => deposit.Amount > 0
@@ -69,7 +92,8 @@ public class EndpointToolsOverMcpTests
                 : Results.Problem(statusCode: StatusCodes.Status422UnprocessableEntity, extensions: new Dictionary<string, object?> { ["code"] = "amount.not_positive" }))
             .WithName("Deposit")
             .WithSummary("Deposit money into an account")
-            .AsMcpTool();
+            .AsMcpWriteTool();
+        app.MapGet("/accounts/{id}", (string id) => Results.Ok(new { id })).WithName("GetAccount").AsMcpTool();
         app.MapDelete("/accounts/{id}", (string id) => Results.NoContent()).WithName("CloseAccount");
         app.MapMcpKit();
 

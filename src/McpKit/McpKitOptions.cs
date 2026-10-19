@@ -7,4 +7,7 @@ public sealed class McpKitOptions
 
     // stateless by default: no session to pin, so the host scales out like any other API
     public bool Stateless { get; set; } = true;
+
+    // off by default: a host exposes reads only until someone decides agents may change things
+    public bool AllowWriteTools { get; set; }
 }

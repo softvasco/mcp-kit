@@ -39,7 +39,7 @@ public class EndpointToolInvokerTests
     {
         var response = await Invoke(
             app => app.MapPost("/accounts/{id:guid}/deposits", (Guid id, Deposit deposit) => new { id, deposit.Amount, deposit.Currency })
-                .WithName("Deposit").AsMcpTool(),
+                .WithName("Deposit").AsMcpWriteTool(),
             """{ "id": "5f0e7c38-62a4-4c39-9d43-0b8f6f2b9a10", "amount": 12.50, "currency": "EUR" }""");
 
         Assert.Equal(StatusCodes.Status200OK, response.StatusCode);
@@ -54,7 +54,7 @@ public class EndpointToolInvokerTests
         var response = await Invoke(
             app => app.MapPost("/accounts/{id:guid}/withdrawals", (Guid id) =>
                     Results.Problem(statusCode: StatusCodes.Status409Conflict, extensions: new Dictionary<string, object?> { ["code"] = "account.insufficient_funds" }))
-                .WithName("Withdraw").AsMcpTool(),
+                .WithName("Withdraw").AsMcpWriteTool(),
             """{ "id": "5f0e7c38-62a4-4c39-9d43-0b8f6f2b9a10" }""");
 
         Assert.Equal(StatusCodes.Status409Conflict, response.StatusCode);
@@ -70,7 +70,7 @@ public class EndpointToolInvokerTests
             app => app.MapPost("/accounts/{id:guid}/deposits", (Guid id, Deposit deposit) => Results.Ok())
                 .AddEndpointFilter(async (context, next) =>
                     context.GetArgument<Deposit>(1).Amount > 0 ? await next(context) : Results.ValidationProblem(new Dictionary<string, string[]> { ["amount"] = ["must be positive"] }))
-                .WithName("Deposit").AsMcpTool(),
+                .WithName("Deposit").AsMcpWriteTool(),
             """{ "id": "5f0e7c38-62a4-4c39-9d43-0b8f6f2b9a10", "amount": 0, "currency": "EUR" }""");
 
         Assert.Equal(StatusCodes.Status400BadRequest, response.StatusCode);
@@ -82,7 +82,7 @@ public class EndpointToolInvokerTests
         var response = await Invoke(
             app => app.MapPost("/accounts/{id:guid}/deposits", (Guid id, Deposit deposit, HttpRequest request) =>
                     new { key = request.Headers["Idempotency-Key"].ToString(), deposit.Amount })
-                .WithName("Deposit").AsMcpTool()
+                .WithName("Deposit").AsMcpWriteTool()
                 .WithMcpToolHeader("Idempotency-Key", "idempotency_key", "reuse it on a retry"),
             """{ "id": "5f0e7c38-62a4-4c39-9d43-0b8f6f2b9a10", "amount": 5, "currency": "EUR", "idempotency_key": "dep-1" }""");
 
@@ -98,7 +98,7 @@ public class EndpointToolInvokerTests
         var response = await Invoke(
             app => app.MapPost("/accounts/{id:guid}/deposits", (Guid id, Deposit deposit, HttpRequest request) =>
                     new { present = request.Headers.ContainsKey("Idempotency-Key") })
-                .WithName("Deposit").AsMcpTool()
+                .WithName("Deposit").AsMcpWriteTool()
                 .WithMcpToolHeader("Idempotency-Key", "idempotency_key", "reuse it on a retry"),
             """{ "id": "5f0e7c38-62a4-4c39-9d43-0b8f6f2b9a10", "amount": 5, "currency": "EUR" }""");
 

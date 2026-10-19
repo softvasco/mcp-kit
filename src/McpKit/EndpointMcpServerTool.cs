@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -13,6 +14,7 @@ internal sealed class EndpointMcpServerTool(EndpointTool tool) : McpServerTool
         Name = tool.Name,
         Description = tool.Description,
         InputSchema = ToolInputSchema.For(tool.Endpoint),
+        Annotations = Annotate(tool),
     };
 
     public override IReadOnlyList<object> Metadata => [.. tool.Endpoint.Metadata];
@@ -35,4 +37,14 @@ internal sealed class EndpointMcpServerTool(EndpointTool tool) : McpServerTool
             IsError = !response.IsSuccess,
         };
     }
+
+    // hints only: clients use them to decide when to ask the user, nothing enforces them
+    private static ToolAnnotations Annotate(EndpointTool tool) => tool.ChangesState
+        ? new ToolAnnotations
+        {
+            ReadOnlyHint = false,
+            DestructiveHint = HttpMethods.IsDelete(tool.HttpMethod) || HttpMethods.IsPut(tool.HttpMethod),
+            IdempotentHint = HttpMethods.IsDelete(tool.HttpMethod) || HttpMethods.IsPut(tool.HttpMethod),
+        }
+        : new ToolAnnotations { ReadOnlyHint = true };
 }
