@@ -77,6 +77,22 @@ internal static class ToolInputSchema
             properties[header.Argument] = new JsonObject { ["type"] = "string", ["description"] = header.Description };
         }
 
+        if (endpoint.Metadata.GetMetadata<McpToolConfirmationMetadata>() is not null)
+        {
+            if (properties.ContainsKey(McpToolConfirmationMetadata.Argument))
+            {
+                throw new InvalidOperationException(
+                    $"Endpoint '{endpoint.RoutePattern.RawText}' already has an argument '{McpToolConfirmationMetadata.Argument}'.");
+            }
+
+            properties[McpToolConfirmationMetadata.Argument] = new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "Leave out on the first call. That call runs nothing and returns a token; "
+                    + "send it here with the same arguments once the user has agreed.",
+            };
+        }
+
         var schema = new JsonObject
         {
             ["type"] = "object",

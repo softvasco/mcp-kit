@@ -20,6 +20,14 @@ public static class McpToolEndpointConventionBuilderExtensions
         return builder.WithMetadata(new McpToolMetadata(name, changesState: true));
     }
 
+    /// <summary>Makes the tool answer its first call with a preview and a token, and run only when called again with it.</summary>
+    public static TBuilder RequireMcpConfirmation<TBuilder>(this TBuilder builder, TimeSpan? lifetime = null)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.WithMetadata(new McpToolConfirmationMetadata(lifetime));
+    }
+
     /// <summary>Adds an optional tool argument that the endpoint gets as a request header.</summary>
     public static TBuilder WithMcpToolHeader<TBuilder>(this TBuilder builder, string header, string argument, string description)
         where TBuilder : IEndpointConventionBuilder
