@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -133,19 +134,79 @@ public class EndpointToolInvokerTests
     }
 
     [Fact]
-    public async Task An_endpoint_that_requires_authorization_is_refused_until_mcp_kit_checks_it()
+    public async Task An_anonymous_caller_gets_a_401_and_the_endpoint_does_not_run()
     {
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => Invoke(
-            app => app.MapGet("/accounts/{id:guid}", (Guid id) => id).RequireAuthorization().WithName("GetAccount").AsMcpTool(),
-            """{ "id": "5f0e7c38-62a4-4c39-9d43-0b8f6f2b9a10" }"""));
+        var ran = false;
 
-        Assert.Contains("get_account", error.Message, StringComparison.Ordinal);
+        var response = await Invoke(
+            app => app.MapGet("/accounts/{id:guid}", (Guid id) => ran = true).RequireAuthorization().WithName("GetAccount").AsMcpTool(),
+            """{ "id": "5f0e7c38-62a4-4c39-9d43-0b8f6f2b9a10" }""");
+
+        Assert.Equal(StatusCodes.Status401Unauthorized, response.StatusCode);
+        Assert.Equal("tool.unauthenticated", JsonDocument.Parse(response.Body).RootElement.GetProperty("code").GetString());
+        Assert.False(ran);
     }
 
-    private static async Task<EndpointToolResponse> Invoke(Action<WebApplication> map, string arguments, ClaimsPrincipal? user = null)
+    [Fact]
+    public async Task A_caller_without_the_scope_gets_a_403()
+    {
+        var response = await Invoke(
+            app => app.MapPost("/accounts/{id:guid}/deposits", (Guid id) => id)
+                .RequireAuthorization(policy => policy.RequireClaim("scope", "accounts:write"))
+                .WithName("Deposit").AsMcpWriteTool(),
+            """{ "id": "5f0e7c38-62a4-4c39-9d43-0b8f6f2b9a10" }""",
+            Caller(("scope", "accounts:read")));
+
+        Assert.Equal(StatusCodes.Status403Forbidden, response.StatusCode);
+        Assert.Equal("tool.forbidden", JsonDocument.Parse(response.Body).RootElement.GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task A_caller_with_the_scope_runs_the_endpoint()
+    {
+        var response = await Invoke(
+            app => app.MapPost("/accounts/{id:guid}/deposits", (Guid id) => new { id })
+                .RequireAuthorization(policy => policy.RequireClaim("scope", "accounts:write"))
+                .WithName("Deposit").AsMcpWriteTool(),
+            """{ "id": "5f0e7c38-62a4-4c39-9d43-0b8f6f2b9a10" }""",
+            Caller(("scope", "accounts:write")));
+
+        Assert.Equal(StatusCodes.Status200OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task A_named_policy_on_the_endpoint_is_checked()
+    {
+        var response = await Invoke(
+            app => app.MapGet("/accounts/{id:guid}", (Guid id) => id).RequireAuthorization("auditors").WithName("GetAccount").AsMcpTool(),
+            """{ "id": "5f0e7c38-62a4-4c39-9d43-0b8f6f2b9a10" }""",
+            Caller(("role", "teller")),
+            auth => auth.AddPolicy("auditors", policy => policy.RequireClaim("role", "auditor")));
+
+        Assert.Equal(StatusCodes.Status403Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Allow_anonymous_wins_over_a_policy()
+    {
+        var response = await Invoke(
+            app => app.MapGet("/status", () => "up").RequireAuthorization().AllowAnonymous().WithName("Status").AsMcpTool(),
+            "{}");
+
+        Assert.Equal(StatusCodes.Status200OK, response.StatusCode);
+    }
+
+    private static ClaimsPrincipal Caller(params (string Type, string Value)[] claims) =>
+        new(new ClaimsIdentity(claims.Select(c => new Claim(c.Type, c.Value)), "test"));
+
+    private static async Task<EndpointToolResponse> Invoke(
+        Action<WebApplication> map,
+        string arguments,
+        ClaimsPrincipal? user = null,
+        Action<AuthorizationOptions>? authorization = null)
     {
         var builder = WebApplication.CreateBuilder();
-        builder.Services.AddAuthorization();
+        builder.Services.AddAuthorization(authorization ?? (_ => { }));
         await using var app = builder.Build();
         map(app);
 
