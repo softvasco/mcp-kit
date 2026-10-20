@@ -66,6 +66,16 @@ app.MapPost("/accounts/{id}/deposits", Deposit)
 app.MapMcpKit().RequireAuthorization();
 ```
 
+Some writes should wait for a person. With `.RequireMcpConfirmation()` the first call runs nothing and returns the arguments it would use plus a `confirmation_token`. A second call with the same arguments and the token runs the endpoint. A token for a deposit of 25 doesn't confirm one of 2500, and it expires after 5 minutes ([ADR 0006](docs/adr/0006-confirmation-before-a-write.md)):
+
+```csharp
+app.MapPost("/transfers", Transfer)
+    .AsMcpWriteTool()
+    .RequireMcpConfirmation();
+```
+
+The token is sealed with ASP.NET Core data protection, so with more than one instance the key ring has to be shared.
+
 `AddMcpKit` registers the MCP server with the streamable HTTP transport, stateless by default so the host scales out like any other API. `MapMcpKit` maps it at `/mcp` (change it with `options.Path`). The sample in [samples/McpKit.Sample](samples/McpKit.Sample) has one hand-written tool that returns the server time.
 
 To run it and connect from any MCP client:

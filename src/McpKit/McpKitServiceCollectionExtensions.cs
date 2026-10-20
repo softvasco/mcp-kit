@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 
@@ -15,6 +17,9 @@ public static class McpKitServiceCollectionExtensions
         configure?.Invoke(options);
         services.AddSingleton(options);
         services.AddSingleton<EndpointToolCatalog>();
+        services.AddDataProtection();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<ToolConfirmations>();
 
         // runs when the server is first built, after the host has mapped its endpoints
         services.AddSingleton<IConfigureOptions<McpServerOptions>>(provider =>
