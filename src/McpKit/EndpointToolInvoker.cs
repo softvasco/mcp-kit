@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Patterns;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace McpKit;
 
@@ -26,12 +27,6 @@ public static class EndpointToolInvoker
         ArgumentNullException.ThrowIfNull(user);
 
         var endpoint = tool.Endpoint;
-
-        // middleware is skipped, so nothing would enforce these yet
-        if (endpoint.Metadata.GetMetadata<IAuthorizeData>() is not null)
-        {
-            throw new InvalidOperationException($"Tool '{tool.Name}' requires authorization, which McpKit does not check yet.");
-        }
 
         var handler = endpoint.RequestDelegate
             ?? throw new InvalidOperationException($"Tool '{tool.Name}' has no request delegate.");
@@ -83,6 +78,11 @@ public static class EndpointToolInvoker
             request.QueryString = query.ToQueryString();
         }
 
+        if (await AuthorizeAsync(context) is { } refused)
+        {
+            return refused;
+        }
+
         await using var body = new MemoryStream();
         context.Response.Body = body;
 
@@ -90,6 +90,40 @@ public static class EndpointToolInvoker
 
         return new EndpointToolResponse(context.Response.StatusCode, context.Response.ContentType, Encoding.UTF8.GetString(body.ToArray()));
     }
+
+    // in-process calls skip the authorization middleware, so the endpoint's policy is checked here
+    private static async Task<EndpointToolResponse?> AuthorizeAsync(HttpContext context)
+    {
+        var metadata = context.GetEndpoint()!.Metadata;
+        var protectedEndpoint = metadata.GetMetadata<IAuthorizeData>() is not null || metadata.GetMetadata<AuthorizationPolicy>() is not null;
+        if (!protectedEndpoint || metadata.GetMetadata<IAllowAnonymous>() is not null)
+        {
+            return null;
+        }
+
+        var services = context.RequestServices;
+        var policy = await AuthorizationPolicy.CombineAsync(
+            services.GetRequiredService<IAuthorizationPolicyProvider>(),
+            metadata.GetOrderedMetadata<IAuthorizeData>(),
+            metadata.GetOrderedMetadata<AuthorizationPolicy>());
+        if (policy is null)
+        {
+            return null;
+        }
+
+        var result = await services.GetRequiredService<IAuthorizationService>().AuthorizeAsync(context.User, context, policy);
+        if (result.Succeeded)
+        {
+            return null;
+        }
+
+        return context.User.Identity?.IsAuthenticated == true
+            ? Refused(StatusCodes.Status403Forbidden, "tool.forbidden", "The caller is not allowed to use this tool.")
+            : Refused(StatusCodes.Status401Unauthorized, "tool.unauthenticated", "The caller is not signed in.");
+    }
+
+    private static EndpointToolResponse Refused(int status, string code, string title) =>
+        new(status, "application/problem+json", JsonSerializer.Serialize(new { title, status, code }));
 
     internal static bool CarriesBody(RouteEndpoint endpoint) =>
         endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods is [var method, ..] && CarriesBody(method);

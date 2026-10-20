@@ -28,6 +28,9 @@ public static class McpKitServiceCollectionExtensions
                 }
             }));
 
-        return services.AddMcpServer().WithHttpTransport(transport => transport.Stateless = options.Stateless);
+        // tools carry their endpoint's metadata, so the SDK's filters hide what the caller's policy refuses
+        return services.AddMcpServer()
+            .WithHttpTransport(transport => transport.Stateless = options.Stateless)
+            .AddAuthorizationFilters();
     }
 }

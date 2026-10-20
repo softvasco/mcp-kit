@@ -5,13 +5,13 @@
 
 Expose ASP.NET Core minimal APIs as MCP tools, with the safety rails an agent-facing API needs. Built on the official [ModelContextProtocol C# SDK](https://github.com/modelcontextprotocol/csharp-sdk).
 
-Work in progress. Endpoints marked with `.AsMcpTool()` or `.AsMcpWriteTool()` are served as tools today, with input schemas built from their route, query and body types, and only reads are served unless the host allows writes. Authorization and confirmation for write tools are next. I'm writing it up as a series: [part 1](https://softvasco.github.io/2026/10/when-an-ai-agent-calls-your-dotnet-api/) lists the problems.
+Work in progress. Endpoints marked with `.AsMcpTool()` or `.AsMcpWriteTool()` are served as tools today, with input schemas built from their route, query and body types, only reads are served unless the host allows writes, and each caller only sees the tools its policies allow. Confirmation for write tools is next. I'm writing it up as a series: [part 1](https://softvasco.github.io/2026/10/when-an-ai-agent-calls-your-dotnet-api/) lists the problems.
 
 ## Why
 
 Most of the APIs that an AI agent should be able to call already exist. They have route handlers, request types, validation, auth, and a team that owns them. Writing a second set of tool classes by hand for MCP means two definitions of the same operation that drift apart, and tools that quietly skip the auth and validation the HTTP endpoint had.
 
-McpKit reads what ASP.NET Core already knows about an endpoint (route, parameters, request type, metadata) and publishes it as an MCP tool. Nothing is exposed unless the endpoint opts in. A tool call runs the endpoint's own request delegate in-process, so binding, filters and validation are the same as over HTTP, and errors come back as the endpoint's problem details. Until McpKit checks authorization itself, it refuses to run endpoints that require it.
+McpKit reads what ASP.NET Core already knows about an endpoint (route, parameters, request type, metadata) and publishes it as an MCP tool. Nothing is exposed unless the endpoint opts in. A tool call runs the endpoint's own request delegate in-process, so binding, filters and validation are the same as over HTTP, and errors come back as the endpoint's problem details. The endpoint's authorization policy decides who can see and call the tool.
 
 ## How it fits
 
@@ -54,6 +54,16 @@ Headers that a filter reads from the request don't show up in a handler's parame
     .AsMcpWriteTool()
     .WithMcpToolHeader("Idempotency-Key", "idempotency_key",
         "A new value for each deposit. Send the same value again if you retry it, so it runs once.");
+```
+
+Authorization is the endpoint's. Protect `/mcp` with the scheme the API already uses, and give each endpoint the policy it needs. A client whose token only carries `accounts:read` doesn't see `deposit` in its tool list, and a direct call to it is refused before the endpoint runs ([ADR 0005](docs/adr/0005-authorization-per-tool.md)):
+
+```csharp
+app.MapPost("/accounts/{id}/deposits", Deposit)
+    .RequireAuthorization(policy => policy.RequireClaim("scope", "accounts:write"))
+    .AsMcpWriteTool();
+
+app.MapMcpKit().RequireAuthorization();
 ```
 
 `AddMcpKit` registers the MCP server with the streamable HTTP transport, stateless by default so the host scales out like any other API. `MapMcpKit` maps it at `/mcp` (change it with `options.Path`). The sample in [samples/McpKit.Sample](samples/McpKit.Sample) has one hand-written tool that returns the server time.
