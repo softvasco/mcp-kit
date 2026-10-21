@@ -9,3 +9,4 @@
 | [0005](0005-authorization-per-tool.md) | Authorization per tool comes from the endpoint's policy | Accepted |
 | [0006](0006-confirmation-before-a-write.md) | Confirmation before a write, with a token bound to the call | Accepted |
 | [0007](0007-tool-output-as-data.md) | Tool output goes back as JSON data, never as loose text | Accepted |
+| [0008](0008-audit-every-tool-call.md) | Audit every tool call, with a hash of the arguments instead of their values | Accepted |
