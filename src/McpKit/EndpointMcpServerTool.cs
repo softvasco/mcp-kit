@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,24 +30,62 @@ internal sealed class EndpointMcpServerTool(EndpointTool tool) : McpServerTool
         var services = request.Services ?? throw new InvalidOperationException("The MCP request has no service provider.");
         var arguments = request.Params?.Arguments ?? new Dictionary<string, JsonElement>();
         var user = request.User ?? new ClaimsPrincipal(new ClaimsIdentity());
+        var call = arguments.Where(a => a.Key != McpToolConfirmationMetadata.Argument).ToDictionary();
 
+        var clock = services.GetRequiredService<TimeProvider>();
+        var audit = services.GetRequiredService<IToolCallAudit>();
+        var startedAt = clock.GetUtcNow();
+        var started = clock.GetTimestamp();
+
+        ToolCallRecord Record(ToolCallOutcome outcome, int? status, CallToolResult? result) => new(
+            tool.Name,
+            CallFingerprint.Caller(user),
+            CallFingerprint.Arguments(call),
+            outcome,
+            status,
+            result?.Content.OfType<TextContentBlock>().Sum(t => Encoding.UTF8.GetByteCount(t.Text)) ?? 0,
+            clock.GetElapsedTime(started),
+            startedAt);
+
+        try
+        {
+            var (result, outcome, status) = await RunAsync(arguments, call, services, user, cancellationToken);
+            await audit.RecordAsync(Record(outcome, status, result), cancellationToken);
+            return result;
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            await audit.RecordAsync(Record(ToolCallOutcome.Failed, null, null), CancellationToken.None);
+            throw;
+        }
+    }
+
+    private async Task<(CallToolResult Result, ToolCallOutcome Outcome, int? Status)> RunAsync(
+        IDictionary<string, JsonElement> arguments,
+        Dictionary<string, JsonElement> call,
+        IServiceProvider services,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken)
+    {
         if (tool.Endpoint.Metadata.GetMetadata<McpToolConfirmationMetadata>() is { } confirmation)
         {
             var confirmations = services.GetRequiredService<ToolConfirmations>();
-            var call = arguments.Where(a => a.Key != McpToolConfirmationMetadata.Argument).ToDictionary();
             if (!arguments.TryGetValue(McpToolConfirmationMetadata.Argument, out var token)
                 || token.ValueKind != JsonValueKind.String
                 || string.IsNullOrEmpty(token.GetString()))
             {
-                return Pending(confirmations.Issue(tool.Name, user, call, confirmation.Lifetime), call);
+                var pending = Pending(confirmations.Issue(tool.Name, user, call, confirmation.Lifetime), call);
+                return (pending, ToolCallOutcome.ConfirmationRequested, null);
             }
 
             switch (confirmations.Check(token.GetString()!, tool.Name, user, call))
             {
                 case ConfirmationCheck.Expired:
-                    return Refused("tool.confirmation_expired", "The confirmation token has expired. Call again without it for a new one.");
+                    return (Refused("tool.confirmation_expired", "The confirmation token has expired. Call again without it for a new one."),
+                        ToolCallOutcome.ConfirmationRefused, null);
                 case ConfirmationCheck.Invalid:
-                    return Refused("tool.confirmation_invalid", "The confirmation token is not for this call. Call again without it for a new one.");
+                    return (Refused("tool.confirmation_invalid", "The confirmation token is not for this call. Call again without it for a new one."),
+                        ToolCallOutcome.ConfirmationRefused, null);
             }
 
             arguments = call;
@@ -54,7 +93,10 @@ internal sealed class EndpointMcpServerTool(EndpointTool tool) : McpServerTool
 
         var response = await EndpointToolInvoker.InvokeAsync(tool, arguments.AsReadOnly(), services, user, cancellationToken);
 
-        return Output(ToolOutput.Format(response), isError: !response.IsSuccess);
+        return (
+            Output(ToolOutput.Format(response), isError: !response.IsSuccess),
+            response.IsSuccess ? ToolCallOutcome.Succeeded : ToolCallOutcome.Failed,
+            response.StatusCode);
     }
 
     // clients that read structuredContent get the object itself; the text block holds the same JSON
