@@ -1,6 +1,5 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.DataProtection;
 
@@ -23,7 +22,7 @@ internal sealed class ToolConfirmations(IDataProtectionProvider protection, Time
         string tool, ClaimsPrincipal user, IReadOnlyDictionary<string, JsonElement> arguments, TimeSpan lifetime)
     {
         var expiresAt = clock.GetUtcNow() + lifetime;
-        var payload = new Payload(tool, CallerOf(user), Fingerprint(arguments), expiresAt.ToUnixTimeMilliseconds());
+        var payload = new Payload(tool, CallFingerprint.Caller(user), CallFingerprint.Arguments(arguments), expiresAt.ToUnixTimeMilliseconds());
         return (_protector.Protect(JsonSerializer.Serialize(payload)), expiresAt);
     }
 
@@ -42,28 +41,13 @@ internal sealed class ToolConfirmations(IDataProtectionProvider protection, Time
 
         if (payload is null
             || payload.Tool != tool
-            || payload.Caller != CallerOf(user)
-            || payload.Arguments != Fingerprint(arguments))
+            || payload.Caller != CallFingerprint.Caller(user)
+            || payload.Arguments != CallFingerprint.Arguments(arguments))
         {
             return ConfirmationCheck.Invalid;
         }
 
         return clock.GetUtcNow().ToUnixTimeMilliseconds() > payload.ExpiresAt ? ConfirmationCheck.Expired : ConfirmationCheck.Valid;
-    }
-
-    private static string CallerOf(ClaimsPrincipal user) =>
-        user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? user.FindFirst("sub")?.Value ?? user.Identity?.Name ?? string.Empty;
-
-    // key order is the client's choice, so sort before hashing; values are compared as compact JSON
-    private static string Fingerprint(IReadOnlyDictionary<string, JsonElement> arguments)
-    {
-        var canonical = new StringBuilder();
-        foreach (var (name, value) in arguments.OrderBy(a => a.Key, StringComparer.Ordinal))
-        {
-            canonical.Append(name).Append('=').Append(JsonSerializer.Serialize(value)).Append('\n');
-        }
-
-        return Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(canonical.ToString())));
     }
 
     private sealed record Payload(string Tool, string Caller, string Arguments, long ExpiresAt);
