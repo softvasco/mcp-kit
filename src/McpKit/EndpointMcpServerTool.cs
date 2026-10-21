@@ -54,7 +54,20 @@ internal sealed class EndpointMcpServerTool(EndpointTool tool) : McpServerTool
 
         var response = await EndpointToolInvoker.InvokeAsync(tool, arguments.AsReadOnly(), services, user, cancellationToken);
 
-        return Text(response.Body, isError: !response.IsSuccess);
+        return Output(ToolOutput.Format(response), isError: !response.IsSuccess);
+    }
+
+    // clients that read structuredContent get the object itself; the text block holds the same JSON
+    private static CallToolResult Output(string json, bool isError)
+    {
+        var result = Text(json, isError);
+        var value = JsonElement.Parse(json);
+        if (value.ValueKind == JsonValueKind.Object)
+        {
+            result.StructuredContent = value;
+        }
+
+        return result;
     }
 
     // not an error: the call did what it should, which is nothing until someone says yes
