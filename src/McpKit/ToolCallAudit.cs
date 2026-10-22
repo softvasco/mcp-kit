@@ -8,6 +8,7 @@ public enum ToolCallOutcome
     Failed,
     ConfirmationRequested,
     ConfirmationRefused,
+    RateLimited,
 }
 
 /// <summary>One tool call for the audit: the arguments' hash, never their values.</summary>

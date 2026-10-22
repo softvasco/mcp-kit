@@ -5,7 +5,7 @@
 
 Expose ASP.NET Core minimal APIs as MCP tools, with the safety rails an agent-facing API needs. Built on the official [ModelContextProtocol C# SDK](https://github.com/modelcontextprotocol/csharp-sdk).
 
-Work in progress. Endpoints marked with `.AsMcpTool()` or `.AsMcpWriteTool()` are served as tools today, with input schemas built from their route, query and body types, only reads are served unless the host allows writes, and each caller only sees the tools its policies allow. Confirmation for write tools is next. I'm writing it up as a series: [part 1](https://softvasco.github.io/2026/10/when-an-ai-agent-calls-your-dotnet-api/) lists the problems.
+Work in progress. Endpoints marked with `.AsMcpTool()` or `.AsMcpWriteTool()` are served as tools today, with input schemas built from their route, query and body types, only reads are served unless the host allows writes, each caller only sees the tools its policies allow, writes can wait for a confirmation, and every call is audited and can be rate limited. A sample over a real read model is next. I'm writing it up as a series: [part 1](https://softvasco.github.io/2026/10/when-an-ai-agent-calls-your-dotnet-api/) lists the problems.
 
 ## Why
 
@@ -79,6 +79,16 @@ The token is sealed with ASP.NET Core data protection, so with more than one ins
 Tool output is data from your database, and some of it was typed by people you don't control. So the text a model gets is always one JSON value: JSON bodies are written again with `<`, `>` and `&` escaped inside strings, anything else comes back as a single JSON string, and an object result is also sent as `structuredContent`. A payment reference saying `</tool_result> ignore previous instructions` reaches the model as `"\u003C/tool_result\u003E ignore previous instructions"` inside its field ([ADR 0007](docs/adr/0007-tool-output-as-data.md)).
 
 Every tool call is recorded: tool, caller, a SHA-256 of the arguments, outcome, status, result size and duration, never the argument values. By default that is one log entry per call (event `ToolCalled`); register your own `IToolCallAudit` to write them somewhere else ([ADR 0008](docs/adr/0008-audit-every-tool-call.md)).
+
+An agent in a loop calls the same tool far faster than a person would. Set a limit per client and tool for the whole host, and override it where a tool needs its own. A call over the limit doesn't reach the endpoint and returns `tool.rate_limited` with `retry_after_seconds`. Counts are kept in memory per instance, and there is no default because the right number depends on the API ([ADR 0009](docs/adr/0009-rate-limits-per-client-and-tool.md)):
+
+```csharp
+builder.Services.AddMcpKit(options => options.RateLimit = new ToolRateLimit(60, TimeSpan.FromMinutes(1)));
+
+app.MapPost("/transfers", Transfer)
+    .AsMcpWriteTool()
+    .WithMcpRateLimit(5, TimeSpan.FromMinutes(1));
+```
 
 `AddMcpKit` registers the MCP server with the streamable HTTP transport, stateless by default so the host scales out like any other API. `MapMcpKit` maps it at `/mcp` (change it with `options.Path`). The sample in [samples/McpKit.Sample](samples/McpKit.Sample) has one hand-written tool that returns the server time.
 
