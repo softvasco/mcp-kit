@@ -10,4 +10,7 @@ public sealed class McpKitOptions
 
     // off by default: a host exposes reads only until someone decides agents may change things
     public bool AllowWriteTools { get; set; }
+
+    // no default: the right number depends on the API, and a guess blocks real work or does nothing
+    public ToolRateLimit? RateLimit { get; set; }
 }

@@ -28,6 +28,14 @@ public static class McpToolEndpointConventionBuilderExtensions
         return builder.WithMetadata(new McpToolConfirmationMetadata(lifetime));
     }
 
+    /// <summary>Limits how often each client may call this tool, instead of the host's limit.</summary>
+    public static TBuilder WithMcpRateLimit<TBuilder>(this TBuilder builder, int permitLimit, TimeSpan window)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.WithMetadata(new ToolRateLimit(permitLimit, window));
+    }
+
     /// <summary>Adds an optional tool argument that the endpoint gets as a request header.</summary>
     public static TBuilder WithMcpToolHeader<TBuilder>(this TBuilder builder, string header, string argument, string description)
         where TBuilder : IEndpointConventionBuilder

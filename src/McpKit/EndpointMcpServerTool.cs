@@ -67,6 +67,13 @@ internal sealed class EndpointMcpServerTool(EndpointTool tool) : McpServerTool
         ClaimsPrincipal user,
         CancellationToken cancellationToken)
     {
+        var limit = tool.Endpoint.Metadata.GetMetadata<ToolRateLimit>() ?? services.GetRequiredService<McpKitOptions>().RateLimit;
+        if (limit is not null
+            && services.GetRequiredService<ToolRateLimiter>().Acquire(CallFingerprint.Caller(user), tool.Name, limit) is { } retryAfter)
+        {
+            return (RateLimited(retryAfter), ToolCallOutcome.RateLimited, null);
+        }
+
         if (tool.Endpoint.Metadata.GetMetadata<McpToolConfirmationMetadata>() is { } confirmation)
         {
             var confirmations = services.GetRequiredService<ToolConfirmations>();
@@ -126,6 +133,15 @@ internal sealed class EndpointMcpServerTool(EndpointTool tool) : McpServerTool
 
     private static CallToolResult Refused(string code, string title) =>
         Text(JsonSerializer.Serialize(new { title, code }), isError: true);
+
+    // whole seconds, rounded up, so a client that waits exactly that long gets in
+    private static CallToolResult RateLimited(TimeSpan retryAfter) =>
+        Text(JsonSerializer.Serialize(new Dictionary<string, object>
+        {
+            ["title"] = "Too many calls to this tool. Wait before calling it again.",
+            ["code"] = "tool.rate_limited",
+            ["retry_after_seconds"] = (int)Math.Ceiling(retryAfter.TotalSeconds),
+        }), isError: true);
 
     private static CallToolResult Text(string text, bool isError) => new()
     {

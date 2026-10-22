@@ -20,6 +20,7 @@ public static class McpKitServiceCollectionExtensions
         services.AddDataProtection();
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<ToolConfirmations>();
+        services.AddSingleton<ToolRateLimiter>();
         services.TryAddSingleton<IToolCallAudit, LoggerToolCallAudit>();
 
         // runs when the server is first built, after the host has mapped its endpoints
