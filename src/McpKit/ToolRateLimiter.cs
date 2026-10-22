@@ -37,12 +37,9 @@ internal sealed class ToolRateLimiter(TimeProvider clock)
             return;
         }
 
-        foreach (var entry in _windows)
+        foreach (var expired in _windows.Where(entry => entry.Value.EndsAt <= now))
         {
-            if (entry.Value.EndsAt <= now)
-            {
-                _windows.TryRemove(entry);
-            }
+            _windows.TryRemove(expired);
         }
     }
 
