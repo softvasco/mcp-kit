@@ -5,7 +5,7 @@
 
 Expose ASP.NET Core minimal APIs as MCP tools, with the safety rails an agent-facing API needs. Built on the official [ModelContextProtocol C# SDK](https://github.com/modelcontextprotocol/csharp-sdk).
 
-Work in progress. Endpoints marked with `.AsMcpTool()` or `.AsMcpWriteTool()` are served as tools today, with input schemas built from their route, query and body types, only reads are served unless the host allows writes, each caller only sees the tools its policies allow, writes can wait for a confirmation, and every call is audited and can be rate limited. A sample over a real read model is next. I'm writing it up as a series: [part 1](https://softvasco.github.io/2026/10/when-an-ai-agent-calls-your-dotnet-api/) lists the problems.
+Work in progress. Endpoints marked with `.AsMcpTool()` or `.AsMcpWriteTool()` are served as tools today, with input schemas built from their route, query and body types, only reads are served unless the host allows writes, each caller only sees the tools its policies allow, writes can wait for a confirmation, and every call is audited and can be rate limited. [samples/McpKit.LedgerSample](samples/McpKit.LedgerSample) shows it on an account read model. I'm writing it up as a series: [part 1](https://softvasco.github.io/2026/10/when-an-ai-agent-calls-your-dotnet-api/) lists the problems.
 
 ## Why
 
@@ -99,6 +99,16 @@ dotnet run --project samples/McpKit.Sample
 ```
 
 The tests connect to the sample through the official client over `WebApplicationFactory`, so the whole path from HTTP request to tool result runs in-process without an LLM.
+
+### Account read model sample
+
+[samples/McpKit.LedgerSample](samples/McpKit.LedgerSample) is closer to a real API: two read endpoints over an account read model with the same fields as [ledger-core](https://github.com/softvasco/ledger-core)'s read side, kept in memory so it runs without a database. Nothing in it is written for MCP except `.AsMcpTool()` on each endpoint.
+
+```bash
+dotnet run --project samples/McpKit.LedgerSample
+```
+
+An agent sees `get_account` and `get_statement`, both read-only, described by the endpoints' summaries. An unknown account is a tool error carrying the endpoint's problem with `code: account.not_found`, and `take` outside 1 to 100 is refused by the endpoint rather than clamped, so the agent learns the limit from the error. The seeded account ids are in `AccountReadModel`.
 
 ## Design notes
 

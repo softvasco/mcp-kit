@@ -3,6 +3,7 @@
     <Project Path="src/McpKit/McpKit.csproj" />
   </Folder>
   <Folder Name="/samples/">
+    <Project Path="samples/McpKit.LedgerSample/McpKit.LedgerSample.csproj" />
     <Project Path="samples/McpKit.Sample/McpKit.Sample.csproj" />
   </Folder>
   <Folder Name="/tests/">

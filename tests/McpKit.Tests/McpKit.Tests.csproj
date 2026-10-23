@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <ProjectReference Include="..\..\samples\McpKit.LedgerSample\McpKit.LedgerSample.csproj" />
     <ProjectReference Include="..\..\samples\McpKit.Sample\McpKit.Sample.csproj" />
     <ProjectReference Include="..\..\src\McpKit\McpKit.csproj" />
   </ItemGroup>
