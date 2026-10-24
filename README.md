@@ -98,6 +98,8 @@ To run it and connect from any MCP client:
 dotnet run --project samples/McpKit.Sample
 ```
 
+[docs/clients.md](docs/clients.md) has the setup for VS Code, the MCP Inspector, the C# client and curl.
+
 The tests connect to the sample through the official client over `WebApplicationFactory`, so the whole path from HTTP request to tool result runs in-process without an LLM.
 
 ### Account read model sample
