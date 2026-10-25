@@ -11,3 +11,4 @@
 | [0007](0007-tool-output-as-data.md) | Tool output goes back as JSON data, never as loose text | Accepted |
 | [0008](0008-audit-every-tool-call.md) | Audit every tool call, with a hash of the arguments instead of their values | Accepted |
 | [0009](0009-rate-limits-per-client-and-tool.md) | Rate limits per client and tool, counted inside the tool call | Accepted |
+| [0010](0010-redact-fields-in-tool-output.md) | Redact fields in tool output by name or path | Accepted |
