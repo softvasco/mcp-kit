@@ -101,7 +101,7 @@ internal sealed class EndpointMcpServerTool(EndpointTool tool) : McpServerTool
         var response = await EndpointToolInvoker.InvokeAsync(tool, arguments.AsReadOnly(), services, user, cancellationToken);
 
         return (
-            Output(ToolOutput.Format(response), isError: !response.IsSuccess),
+            Output(ToolOutput.Format(response, services.GetRequiredService<McpKitOptions>().Redaction), isError: !response.IsSuccess),
             response.IsSuccess ? ToolCallOutcome.Succeeded : ToolCallOutcome.Failed,
             response.StatusCode);
     }
