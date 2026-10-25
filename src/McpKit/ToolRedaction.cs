@@ -22,6 +22,19 @@ public sealed class ToolRedaction
         return Add(field, count);
     }
 
+    // the tool's own rules go last, so for the same field they win over the host's
+    internal ToolRedaction CombinedWith(ToolRedaction? tool)
+    {
+        if (tool is null || tool.IsEmpty)
+        {
+            return this;
+        }
+
+        var combined = new ToolRedaction();
+        combined._rules.AddRange([.. _rules, .. tool._rules]);
+        return combined;
+    }
+
     internal JsonNode? Apply(JsonNode? root) => IsEmpty ? root : Walk(root, []);
 
     private ToolRedaction Add(string field, int keepLast)
