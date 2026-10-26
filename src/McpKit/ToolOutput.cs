@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Unicode;
 
 namespace McpKit;
@@ -14,31 +15,32 @@ internal static class ToolOutput
         Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
     };
 
-    public static string Format(EndpointToolResponse response)
+    public static string Format(EndpointToolResponse response, ToolRedaction? redaction = null)
     {
         ArgumentNullException.ThrowIfNull(response);
 
-        return ReadJson(response) is { } json
-            ? JsonSerializer.Serialize(json, Options)
+        return ReadJson(response, out var json)
+            ? JsonSerializer.Serialize(redaction is null ? json : redaction.Apply(json), Options)
             : JsonSerializer.Serialize(response.Body, Options);
     }
 
     // anything that isn't valid JSON goes back as one string, so free text is never unquoted
-    private static JsonElement? ReadJson(EndpointToolResponse response)
+    private static bool ReadJson(EndpointToolResponse response, out JsonNode? json)
     {
+        json = null;
         if (!IsJson(response.ContentType) || string.IsNullOrWhiteSpace(response.Body))
         {
-            return null;
+            return false;
         }
 
         try
         {
-            using var document = JsonDocument.Parse(response.Body);
-            return document.RootElement.Clone();
+            json = JsonNode.Parse(response.Body);
+            return true;
         }
         catch (JsonException)
         {
-            return null;
+            return false;
         }
     }
 

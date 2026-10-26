@@ -36,6 +36,18 @@ public static class McpToolEndpointConventionBuilderExtensions
         return builder.WithMetadata(new ToolRateLimit(permitLimit, window));
     }
 
+    /// <summary>Masks fields in this tool's output on top of the host's rules.</summary>
+    public static TBuilder WithMcpRedaction<TBuilder>(this TBuilder builder, Action<ToolRedaction> configure)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var redaction = new ToolRedaction();
+        configure(redaction);
+        return builder.WithMetadata(redaction);
+    }
+
     /// <summary>Adds an optional tool argument that the endpoint gets as a request header.</summary>
     public static TBuilder WithMcpToolHeader<TBuilder>(this TBuilder builder, string header, string argument, string description)
         where TBuilder : IEndpointConventionBuilder
