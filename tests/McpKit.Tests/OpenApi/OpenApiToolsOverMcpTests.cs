@@ -75,11 +75,7 @@ public sealed class OpenApiToolsOverMcpTests : IDisposable
 
     private async Task<WebApplication> StartHost(bool allowWrites)
     {
-        IReadOnlyList<OpenApiTool> tools;
-        await using (var file = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "OpenApi", "accounts.openapi.json")))
-        {
-            tools = await OpenApiToolCatalog.LoadAsync(file, Token);
-        }
+        var tools = await SampleDocument.LoadToolsAsync(Token);
 
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
@@ -126,13 +122,17 @@ public sealed class OpenApiToolsOverMcpTests : IDisposable
 
         public sealed class StubHandler(StubUpstream upstream) : HttpMessageHandler
         {
-            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            // HttpClient disposes the response it gets back, so the handler hands it over
+            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+                Task.FromResult(Answer(request));
+
+            private HttpResponseMessage Answer(HttpRequestMessage request)
             {
                 upstream.Line = $"{request.Method} {request.RequestUri}";
-                return Task.FromResult(new HttpResponseMessage(upstream._status)
+                return new HttpResponseMessage(upstream._status)
                 {
                     Content = new StringContent(upstream._body, Encoding.UTF8, "application/json"),
-                });
+                };
             }
         }
     }
