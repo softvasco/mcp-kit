@@ -132,11 +132,7 @@ public class OpenApiToolCatalogTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => LoadText("""{ "hello": "world" }"""));
     }
 
-    private static async Task<IReadOnlyList<OpenApiTool>> Load()
-    {
-        await using var file = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "OpenApi", "accounts.openapi.json"));
-        return await OpenApiToolCatalog.LoadAsync(file, Token);
-    }
+    private static Task<IReadOnlyList<OpenApiTool>> Load() => SampleDocument.LoadToolsAsync(Token);
 
     private static async Task<IReadOnlyList<OpenApiTool>> LoadText(string json)
     {

@@ -84,8 +84,7 @@ public sealed class OpenApiToolInvokerTests : IDisposable
 
     private async Task<EndpointToolResponse> Invoke(string toolName, string arguments)
     {
-        await using var file = File.OpenRead(Path.Combine(AppContext.BaseDirectory, "OpenApi", "accounts.openapi.json"));
-        var tool = Assert.Single(await OpenApiToolCatalog.LoadAsync(file, Token), t => t.Name == toolName);
+        var tool = Assert.Single(await SampleDocument.LoadToolsAsync(Token), t => t.Name == toolName);
 
         using var client = new HttpClient(_upstream, disposeHandler: false) { BaseAddress = new Uri("https://bank.example/api/v1/") };
         var args = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(arguments)!;
