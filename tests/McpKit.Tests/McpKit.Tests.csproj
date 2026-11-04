@@ -3,9 +3,13 @@
     <ProjectReference Include="..\..\samples\McpKit.LedgerSample\McpKit.LedgerSample.csproj" />
     <ProjectReference Include="..\..\samples\McpKit.Sample\McpKit.Sample.csproj" />
     <ProjectReference Include="..\..\src\McpKit\McpKit.csproj" />
+    <ProjectReference Include="..\..\src\McpKit.OpenApi\McpKit.OpenApi.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="ModelContextProtocol" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="OpenApi\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

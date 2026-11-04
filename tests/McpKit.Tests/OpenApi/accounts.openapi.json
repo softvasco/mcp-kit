@@ -1,0 +1,73 @@
+{
+  "openapi": "3.1.1",
+  "info": { "title": "Accounts", "version": "1.0" },
+  "paths": {
+    "/accounts": {
+      "get": {
+        "operationId": "listAccounts",
+        "summary": "Lists accounts, newest first.",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["open", "closed"] } },
+          { "name": "limit", "in": "query", "description": "Page size.", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } },
+          { "name": "session", "in": "cookie", "schema": { "type": "string" } }
+        ]
+      }
+    },
+    "/accounts/{id}": {
+      "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } } ],
+      "get": { "operationId": "getAccount", "summary": "Gets one account." },
+      "delete": { "summary": "Closes an account." }
+    },
+    "/accounts/{id}/deposits": {
+      "post": {
+        "operationId": "Deposit",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "Idempotency-Key", "in": "header", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DepositRequest" } } }
+        }
+      }
+    },
+    "/accounts/{id}/tags": {
+      "put": {
+        "operationId": "setTags",
+        "parameters": [ { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } } ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "array", "items": { "type": "string" } } } }
+        }
+      }
+    },
+    "/categories": {
+      "post": {
+        "operationId": "addCategory",
+        "requestBody": {
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Category" } } }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DepositRequest": {
+        "type": "object",
+        "required": ["amount", "currency"],
+        "properties": {
+          "amount": { "type": "number", "minimum": 0.01 },
+          "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+          "reference": { "type": ["string", "null"] }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "children": { "type": "array", "items": { "$ref": "#/components/schemas/Category" } }
+        }
+      }
+    }
+  }
+}
