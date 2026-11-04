@@ -124,6 +124,20 @@ dotnet run --project samples/McpKit.LedgerSample
 
 An agent sees `get_account` and `get_statement`, both read-only, described by the endpoints' summaries. An unknown account is a tool error carrying the endpoint's problem with `code: account.not_found`, and `take` outside 1 to 100 is refused by the endpoint rather than clamped, so the agent learns the limit from the error. The seeded account ids are in `AccountReadModel`.
 
+### An API you don't host: tools from its OpenAPI document
+
+When the API runs somewhere else, or isn't .NET, the `McpKit.OpenApi` package reads its OpenAPI document (JSON for now, tested with 3.1) and turns each operation into a tool that calls the API over HTTP:
+
+```csharp
+await using var document = File.OpenRead("bank.openapi.json");
+var tools = await OpenApiToolCatalog.LoadAsync(document);
+
+builder.Services.AddMcpKit()
+    .AddOpenApiTools("bank", tools, http => http.BaseAddress = new Uri("https://bank.example/api/v1/"));
+```
+
+Tool names come from `operationId` in snake_case, or from the verb and path when there is none. Path, query and header parameters and the JSON body's properties become arguments, with references inlined and the document's limits (`minimum`, `pattern`, `enum`) kept. Path values are escaped, so an id can't change the route. Generated tools follow the same rules as endpoint tools: only GET and HEAD operations are served unless `AllowWriteTools` is on, and calls are audited, rate limited and redacted the same way. Picking and renaming operations and passing the caller's credentials upstream come next.
+
 ## Design notes
 
 Decisions are recorded in [docs/adr](docs/adr/README.md).

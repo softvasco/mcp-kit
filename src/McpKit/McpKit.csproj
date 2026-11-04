@@ -10,6 +10,7 @@
     <PackageReference Include="ModelContextProtocol.AspNetCore" />
   </ItemGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="McpKit.OpenApi" />
     <InternalsVisibleTo Include="McpKit.Tests" />
   </ItemGroup>
 </Project>
