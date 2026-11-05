@@ -136,7 +136,23 @@ builder.Services.AddMcpKit()
     .AddOpenApiTools("bank", tools, http => http.BaseAddress = new Uri("https://bank.example/api/v1/"));
 ```
 
-Tool names come from `operationId` in snake_case, or from the verb and path when there is none. Path, query and header parameters and the JSON body's properties become arguments, with references inlined and the document's limits (`minimum`, `pattern`, `enum`) kept. Path values are escaped, so an id can't change the route. Generated tools follow the same rules as endpoint tools: only GET and HEAD operations are served unless `AllowWriteTools` is on, and calls are audited, rate limited and redacted the same way. Picking and renaming operations and passing the caller's credentials upstream come next.
+Tool names come from `operationId` in snake_case, or from the verb and path when there is none. Path, query and header parameters and the JSON body's properties become arguments, with references inlined and the document's limits (`minimum`, `pattern`, `enum`) kept. Path values are escaped, so an id can't change the route. Generated tools follow the same rules as endpoint tools: only GET and HEAD operations are served unless `AllowWriteTools` is on, and calls are audited, rate limited and redacted the same way.
+
+A big API rarely needs every operation as a tool, and generated names aren't always the ones a model picks well. A selection keeps some, drops some and renames others, and binds from configuration:
+
+```csharp
+builder.Services.AddMcpKit()
+    .AddOpenApiTools("bank", tools, http => http.BaseAddress = new Uri("https://bank.example/api/v1/"),
+        select => builder.Configuration.GetSection("Bank:Tools").Bind(select));
+```
+
+```json
+{ "Bank": { "Tools": {
+  "Exclude": [ "set_tags" ],
+  "Rename": { "delete_accounts_id": "close_account" } } } }
+```
+
+`Include`, when set, is the full list of tools to serve, and `Exclude` wins over it. A name the document doesn't have, a new name with characters outside letters, digits, `_`, `-` and `.`, or two tools ending up with the same name fail at startup, so a typo in config can't quietly change what the model sees. Passing the caller's credentials upstream comes next.
 
 ## Design notes
 
