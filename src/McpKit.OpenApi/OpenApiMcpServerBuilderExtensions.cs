@@ -8,12 +8,26 @@ public static class OpenApiMcpServerBuilderExtensions
 {
     /// <summary>Adds tools for the operations of an OpenAPI document. Configure the client with the API's base address.</summary>
     public static IMcpServerBuilder AddOpenApiTools(
-        this IMcpServerBuilder builder, string name, IReadOnlyList<OpenApiTool> tools, Action<HttpClient> configureClient)
+        this IMcpServerBuilder builder, string name, IReadOnlyList<OpenApiTool> tools, Action<HttpClient> configureClient) =>
+        builder.AddOpenApiTools(name, tools, configureClient, _ => { });
+
+    /// <summary>Adds only the operations picked by the selection; an unknown name fails here.</summary>
+    public static IMcpServerBuilder AddOpenApiTools(
+        this IMcpServerBuilder builder,
+        string name,
+        IReadOnlyList<OpenApiTool> tools,
+        Action<HttpClient> configureClient,
+        Action<OpenApiToolSelection> select)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(tools);
         ArgumentNullException.ThrowIfNull(configureClient);
+        ArgumentNullException.ThrowIfNull(select);
+
+        var selection = new OpenApiToolSelection();
+        select(selection);
+        var served = selection.Apply(tools);
 
         var clientName = $"McpKit.OpenApi:{name}";
         builder.Services.AddHttpClient(clientName, configureClient);
@@ -24,7 +38,7 @@ public static class OpenApiMcpServerBuilderExtensions
             {
                 var allowWrites = provider.GetRequiredService<McpKitOptions>().AllowWriteTools;
                 server.ToolCollection ??= [];
-                foreach (var tool in tools.Where(t => allowWrites || !t.ChangesState))
+                foreach (var tool in served.Where(t => allowWrites || !t.ChangesState))
                 {
                     server.ToolCollection.Add(new OpenApiMcpServerTool(tool, clientName));
                 }

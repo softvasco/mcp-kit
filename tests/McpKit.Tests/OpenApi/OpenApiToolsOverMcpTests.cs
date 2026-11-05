@@ -73,7 +73,38 @@ public sealed class OpenApiToolsOverMcpTests : IDisposable
         Assert.Equal("account.not_found", JsonElement.Parse(text).GetProperty("code").GetString());
     }
 
-    private async Task<WebApplication> StartHost(bool allowWrites)
+    [Fact]
+    public async Task A_renamed_tool_is_listed_and_called_under_its_new_name()
+    {
+        _upstream.Respond(HttpStatusCode.OK, """{"id":"acc-1","iban":"PT50000201231234567890154","balance":0}""");
+        await using var app = await StartHost(allowWrites: false, select: s =>
+        {
+            s.Include.Add("get_account");
+            s.Rename["get_account"] = "find_account";
+        });
+        await using var client = await Connect(app);
+
+        var tools = await client.ListToolsAsync(cancellationToken: Token);
+        var result = await client.CallToolAsync("find_account", new Dictionary<string, object?> { ["id"] = "acc-1" }, cancellationToken: Token);
+
+        Assert.Equal("find_account", Assert.Single(tools).Name);
+        Assert.NotEqual(true, result.IsError);
+        Assert.Equal("GET https://bank.example/accounts/acc-1", _upstream.Line);
+    }
+
+    [Fact]
+    public async Task An_excluded_write_stays_out_even_when_writes_are_allowed()
+    {
+        await using var app = await StartHost(allowWrites: true, select: s => s.Exclude.Add("delete_accounts_id"));
+        await using var client = await Connect(app);
+
+        var tools = await client.ListToolsAsync(cancellationToken: Token);
+
+        Assert.DoesNotContain(tools, t => t.Name == "delete_accounts_id");
+        Assert.Equal(5, tools.Count);
+    }
+
+    private async Task<WebApplication> StartHost(bool allowWrites, Action<OpenApiToolSelection>? select = null)
     {
         var tools = await SampleDocument.LoadToolsAsync(Token);
 
@@ -85,7 +116,7 @@ public sealed class OpenApiToolsOverMcpTests : IDisposable
                 options.AllowWriteTools = allowWrites;
                 options.Redaction.KeepLast("iban", 4);
             })
-            .AddOpenApiTools("bank", tools, http => http.BaseAddress = new Uri("https://bank.example/"));
+            .AddOpenApiTools("bank", tools, http => http.BaseAddress = new Uri("https://bank.example/"), select ?? (_ => { }));
         builder.Services.ConfigureHttpClientDefaults(http => http.ConfigurePrimaryHttpMessageHandler(() => _upstream.Handler()));
 
         var app = builder.Build();
