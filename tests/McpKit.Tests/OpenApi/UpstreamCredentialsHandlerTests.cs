@@ -95,10 +95,13 @@ public sealed class UpstreamCredentialsHandlerTests
     {
         public string? Authorization { get; private set; }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(Answer(request));
+
+        private HttpResponseMessage Answer(HttpRequestMessage request)
         {
             Authorization = request.Headers.Authorization?.ToString();
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+            return new HttpResponseMessage(HttpStatusCode.OK);
         }
     }
 }

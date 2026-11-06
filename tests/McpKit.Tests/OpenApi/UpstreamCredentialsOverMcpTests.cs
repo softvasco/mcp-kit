@@ -78,13 +78,16 @@ public sealed class UpstreamCredentialsOverMcpTests
 
     private sealed class Upstream(List<string?> authorization) : HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(Answer(request));
+
+        private HttpResponseMessage Answer(HttpRequestMessage request)
         {
             authorization.Add(request.Headers.Authorization?.ToString());
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            return new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent("""{"id":"acc-1"}""", Encoding.UTF8, "application/json"),
-            });
+            };
         }
     }
 
