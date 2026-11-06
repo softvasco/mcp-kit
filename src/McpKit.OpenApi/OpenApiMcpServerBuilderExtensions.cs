@@ -29,7 +29,7 @@ public static class OpenApiMcpServerBuilderExtensions
         select(selection);
         var served = selection.Apply(tools);
 
-        var clientName = $"McpKit.OpenApi:{name}";
+        var clientName = ClientName(name);
         builder.Services.AddHttpClient(clientName, configureClient);
 
         // same rule as endpoint tools: writes stay out unless the host allows them
@@ -46,4 +46,20 @@ public static class OpenApiMcpServerBuilderExtensions
 
         return builder;
     }
+
+    /// <summary>Sets the Authorization header of each call to the named API from the caller.</summary>
+    public static IMcpServerBuilder WithUpstreamCredentials(
+        this IMcpServerBuilder builder, string name, UpstreamCredentials credentials)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(credentials);
+
+        builder.Services.AddHttpClient(ClientName(name))
+            .AddHttpMessageHandler(services => new UpstreamCredentialsHandler(credentials, services));
+
+        return builder;
+    }
+
+    private static string ClientName(string name) => $"McpKit.OpenApi:{name}";
 }

@@ -47,7 +47,7 @@ internal sealed class OpenApiMcpServerTool(OpenApiTool tool, string clientName) 
         }
 
         var client = services.GetRequiredService<IHttpClientFactory>().CreateClient(clientName);
-        var response = await OpenApiToolInvoker.InvokeAsync(tool, arguments, client, cancellationToken);
+        var response = await OpenApiToolInvoker.InvokeAsync(tool, arguments, client, user, cancellationToken);
 
         return (
             ToolResults.Output(ToolOutput.Format(response, options.Redaction), isError: !response.IsSuccess),

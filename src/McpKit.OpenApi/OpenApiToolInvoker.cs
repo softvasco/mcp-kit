@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 
@@ -7,10 +8,19 @@ namespace McpKit.OpenApi;
 /// <summary>Turns a tool call into an HTTP request to the API the document describes.</summary>
 public static class OpenApiToolInvoker
 {
+    public static Task<EndpointToolResponse> InvokeAsync(
+        OpenApiTool tool,
+        IReadOnlyDictionary<string, JsonElement> arguments,
+        HttpClient client,
+        CancellationToken cancellationToken = default) =>
+        InvokeAsync(tool, arguments, client, caller: null, cancellationToken);
+
+    /// <summary>Sends the call for this caller, so credentials can be picked for them.</summary>
     public static async Task<EndpointToolResponse> InvokeAsync(
         OpenApiTool tool,
         IReadOnlyDictionary<string, JsonElement> arguments,
         HttpClient client,
+        ClaimsPrincipal? caller,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tool);
@@ -35,6 +45,10 @@ public static class OpenApiToolInvoker
         }
 
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        if (caller is not null)
+        {
+            request.Options.Set(UpstreamCredentialsHandler.Caller, caller);
+        }
 
         using var response = await client.SendAsync(request, cancellationToken);
         var text = await response.Content.ReadAsStringAsync(cancellationToken);
