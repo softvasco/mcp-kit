@@ -152,7 +152,21 @@ builder.Services.AddMcpKit()
   "Rename": { "delete_accounts_id": "close_account" } } } }
 ```
 
-`Include`, when set, is the full list of tools to serve, and `Exclude` wins over it. A name the document doesn't have, a new name with characters outside letters, digits, `_`, `-` and `.`, or two tools ending up with the same name fail at startup, so a typo in config can't quietly change what the model sees. Passing the caller's credentials upstream comes next.
+`Include`, when set, is the full list of tools to serve, and `Exclude` wins over it. A name the document doesn't have, a new name with characters outside letters, digits, `_`, `-` and `.`, or two tools ending up with the same name fail at startup, so a typo in config can't quietly change what the model sees.
+
+The token the agent sent is for the MCP server, so it never goes to the upstream API ([ADR 0011](docs/adr/0011-upstream-credentials-not-token-passthrough.md)). When calls should run as the agent's user, the host picks credentials for each caller, usually through a token exchange with its identity provider:
+
+```csharp
+builder.Services.AddMcpKit()
+    .AddOpenApiTools("bank", tools, http => http.BaseAddress = new Uri("https://bank.example/api/v1/"))
+    .WithUpstreamCredentials("bank", async (caller, services, ct) =>
+    {
+        var token = await services.GetRequiredService<BankTokens>().ExchangeAsync(caller, ct);
+        return new AuthenticationHeaderValue("Bearer", token);
+    });
+```
+
+`BankTokens` stands for whatever the host uses to get those tokens. The delegate sets the `Authorization` header on every call, replacing anything a header argument put there, and returning null sends the call without one.
 
 ## Design notes
 
