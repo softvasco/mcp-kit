@@ -58,6 +58,14 @@ public sealed class PetstoreDocumentTests : IDisposable
     }
 
     [Fact]
+    public async Task An_array_query_parameter_is_repeated_once_per_value()
+    {
+        await Invoke("find_pets_by_tags", """{ "tags": ["tag1", "tag 2"] }""");
+
+        Assert.Equal("GET https://petstore.example/api/v3/pet/findByTags?tags=tag1&tags=tag%202", _upstream.Line);
+    }
+
+    [Fact]
     public async Task A_header_parameter_goes_in_the_header_not_the_url()
     {
         await Invoke("delete_pet", """{ "petId": 10, "api_key": "k-1" }""");
@@ -98,7 +106,7 @@ public sealed class PetstoreDocumentTests : IDisposable
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             _request = request;
-            Line = $"{request.Method} {request.RequestUri}";
+            Line = $"{request.Method} {request.RequestUri!.AbsoluteUri}";
             Body = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
             return new HttpResponseMessage(HttpStatusCode.OK);
         }
