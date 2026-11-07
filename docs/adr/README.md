@@ -13,3 +13,4 @@
 | [0009](0009-rate-limits-per-client-and-tool.md) | Rate limits per client and tool, counted inside the tool call | Accepted |
 | [0010](0010-redact-fields-in-tool-output.md) | Redact fields in tool output by name or path | Accepted |
 | [0011](0011-upstream-credentials-not-token-passthrough.md) | Upstream credentials are picked per caller, never passed through | Accepted |
+| [0012](0012-generated-vs-hand-written-tools.md) | Generated tools for APIs as they are, hand-written ones for what an agent needs | Accepted |
