@@ -39,6 +39,20 @@ jobs:
           path: coverage/report
           if-no-files-found: ignore
 
+  gateway-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -f samples/McpKit.OpenApiGateway/Dockerfile -t openapi-gateway .
+      # listing tools needs no upstream, so this checks the image starts and serves the document
+      - name: smoke test
+        run: |
+          docker run -d --name gateway -p 8080:8080             -v "$PWD/tests/McpKit.Tests/OpenApi/petstore.openapi.json:/config/openapi.json:ro"             -e Upstream__BaseAddress=https://petstore.example/api/v3 openapi-gateway
+          for i in $(seq 1 30); do curl -sf localhost:8080/healthz && break; sleep 1; done
+          curl -sf -X POST localhost:8080/mcp -H 'Content-Type: application/json'             -H 'Accept: application/json, text/event-stream'             -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | grep -q '"name":"get_pet_by_id"'
+      - if: failure()
+        run: docker logs gateway
+
   gitleaks:
     runs-on: ubuntu-latest
     steps:
