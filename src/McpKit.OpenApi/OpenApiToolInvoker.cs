@@ -67,7 +67,7 @@ public static class OpenApiToolInvoker
 
         var query = tool.Parameters
             .Where(p => p.In == OpenApiParameterLocation.Query && arguments.ContainsKey(p.Name))
-            .Select(p => $"{Uri.EscapeDataString(p.Name)}={Uri.EscapeDataString(Text(arguments[p.Name]))}")
+            .SelectMany(p => QueryValues(arguments[p.Name]).Select(v => $"{Uri.EscapeDataString(p.Name)}={Uri.EscapeDataString(v)}"))
             .ToList();
 
         return query.Count == 0 ? path.ToString() : $"{path}?{string.Join('&', query)}";
@@ -87,6 +87,11 @@ public static class OpenApiToolInvoker
                 return null;
         }
     }
+
+    // an array goes out as tags=a&tags=b, the form style OpenAPI uses for query parameters by default
+    private static IEnumerable<string> QueryValues(JsonElement value) => value.ValueKind == JsonValueKind.Array
+        ? value.EnumerateArray().Select(Text)
+        : [Text(value)];
 
     // strings go in as they are, anything else as its JSON text, so 25 stays 25 and true stays true
     private static string Text(JsonElement value) => value.ValueKind == JsonValueKind.String
