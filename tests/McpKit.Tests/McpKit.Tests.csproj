@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\..\samples\McpKit.LedgerSample\McpKit.LedgerSample.csproj" />
+    <ProjectReference Include="..\..\samples\McpKit.OpenApiGateway\McpKit.OpenApiGateway.csproj" />
     <ProjectReference Include="..\..\samples\McpKit.Sample\McpKit.Sample.csproj" />
     <ProjectReference Include="..\..\src\McpKit\McpKit.csproj" />
     <ProjectReference Include="..\..\src\McpKit.OpenApi\McpKit.OpenApi.csproj" />

@@ -168,6 +168,17 @@ builder.Services.AddMcpKit()
 
 `BankTokens` stands for whatever the host uses to get those tokens. The delegate sets the `Authorization` header on every call, replacing anything a header argument put there, and returning null sends the call without one.
 
+### The gateway sample in a container
+
+`samples/McpKit.OpenApiGateway` is the shortest host for all of the above: it reads one OpenAPI document and serves its operations as tools, with everything set from configuration. The image runs as a non-root user and expects the document at `/config/openapi.json`:
+
+```bash
+docker build -f samples/McpKit.OpenApiGateway/Dockerfile -t openapi-gateway .
+docker run -p 8080:8080   -v "$PWD/tests/McpKit.Tests/OpenApi/petstore.openapi.json:/config/openapi.json:ro"   -e Upstream__BaseAddress=https://petstore3.swagger.io/api/v3   openapi-gateway
+```
+
+That serves the eight read-only Petstore operations at `http://localhost:8080/mcp`, with a health check at `/healthz`. `Upstream__AllowWriteTools=true` adds the others, and `Upstream__Tools__Include__0=get_pet_by_id` style settings pick and rename tools as shown above. CI builds the image on every pull request and checks that it lists the tools.
+
 ## Design notes
 
 Decisions are recorded in [docs/adr](docs/adr/README.md).
