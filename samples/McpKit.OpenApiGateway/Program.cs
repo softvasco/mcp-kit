@@ -12,8 +12,8 @@ public static class Program
         var upstream = section.Get<UpstreamOptions>() ?? new UpstreamOptions();
         upstream.Validate();
 
-        // Combine on purpose: an absolute path in config wins over the content root
-        var path = Path.Combine(builder.Environment.ContentRootPath, upstream.Document!);
+        // an absolute path in config is used as it is, a relative one is taken from the content root
+        var path = Path.GetFullPath(upstream.Document!, builder.Environment.ContentRootPath);
         IReadOnlyList<OpenApiTool> tools;
         await using (var document = File.OpenRead(path))
         {
