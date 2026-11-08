@@ -5,6 +5,7 @@
     <ProjectReference Include="..\..\samples\McpKit.Sample\McpKit.Sample.csproj" />
     <ProjectReference Include="..\..\src\McpKit\McpKit.csproj" />
     <ProjectReference Include="..\..\src\McpKit.OpenApi\McpKit.OpenApi.csproj" />
+    <ProjectReference Include="..\..\src\McpKit.Testing\McpKit.Testing.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />

@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/McpKit.Testing/McpKit.Testing.csproj" />
     <Project Path="src/McpKit/McpKit.csproj" />
     <Project Path="src/McpKit.OpenApi/McpKit.OpenApi.csproj" />
   </Folder>

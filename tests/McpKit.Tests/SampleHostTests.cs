@@ -1,3 +1,4 @@
+using McpKit.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -53,10 +54,7 @@ public class SampleHostTests
     private static async Task<McpClient> Connect(WebApplicationFactory<Program> factory, string path = "/mcp")
     {
         var http = factory.CreateClient();
-        var options = new HttpClientTransportOptions { Endpoint = new Uri(http.BaseAddress!, path) };
-        // the transport owns the client, so disposing the McpClient disposes it too
-        var transport = new HttpClientTransport(options, http, ownsHttpClient: true);
-        return await McpClient.CreateAsync(transport, cancellationToken: Token);
+        return await McpTestClient.ConnectAsync(http, path, Token);
     }
 
     private sealed class SampleHost(Action<IServiceCollection> services) : WebApplicationFactory<Program>

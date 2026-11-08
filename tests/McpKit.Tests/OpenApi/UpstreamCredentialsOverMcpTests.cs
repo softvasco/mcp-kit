@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Encodings.Web;
 using McpKit.OpenApi;
+using McpKit.Testing;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
@@ -72,8 +73,7 @@ public sealed class UpstreamCredentialsOverMcpTests
         var http = app.GetTestClient();
         http.DefaultRequestHeaders.Add(UserHeader.Header, user);
         http.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", ClientToken);
-        var options = new HttpClientTransportOptions { Endpoint = new Uri(http.BaseAddress!, "/mcp") };
-        return await McpClient.CreateAsync(new HttpClientTransport(options, http, ownsHttpClient: true), cancellationToken: Token);
+        return await McpTestClient.ConnectAsync(http, cancellationToken: Token);
     }
 
     private sealed class Upstream(List<string?> authorization) : HttpMessageHandler

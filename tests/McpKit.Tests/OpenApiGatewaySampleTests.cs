@@ -1,5 +1,6 @@
 using System.Net;
 using McpKit.OpenApiGateway;
+using McpKit.Testing;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -83,8 +84,7 @@ public sealed class OpenApiGatewaySampleTests : IAsyncDisposable
         });
 
         var http = host.CreateClient();
-        var options = new HttpClientTransportOptions { Endpoint = new Uri(http.BaseAddress!, "/mcp") };
-        return await McpClient.CreateAsync(new HttpClientTransport(options, http, ownsHttpClient: true), cancellationToken: Token);
+        return await McpTestClient.ConnectAsync(http, cancellationToken: Token);
     }
 
     private sealed class Upstream : HttpMessageHandler
