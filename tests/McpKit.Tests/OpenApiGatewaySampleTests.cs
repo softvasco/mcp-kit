@@ -13,7 +13,7 @@ public sealed class OpenApiGatewaySampleTests : IAsyncDisposable
     private static readonly string Petstore = Path.Join(AppContext.BaseDirectory, "OpenApi", "petstore.openapi.json");
 
     private readonly Upstream _upstream = new();
-    private WebApplicationFactory<UpstreamOptions>? _host;
+    private readonly WebApplicationFactory<UpstreamOptions> _factory = new();
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
@@ -62,17 +62,14 @@ public sealed class OpenApiGatewaySampleTests : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (_host is not null)
-        {
-            await _host.DisposeAsync();
-        }
-
+        // disposing the base factory also disposes the one WithWebHostBuilder made from it
+        await _factory.DisposeAsync();
         _upstream.Dispose();
     }
 
     private async Task<McpClient> Connect(params (string Key, string Value)[] settings)
     {
-        _host = new WebApplicationFactory<UpstreamOptions>().WithWebHostBuilder(web =>
+        var host = _factory.WithWebHostBuilder(web =>
         {
             web.UseSetting("Upstream:Document", Petstore);
             web.UseSetting("Upstream:BaseAddress", "https://petstore.example/api/v3");
@@ -85,7 +82,7 @@ public sealed class OpenApiGatewaySampleTests : IAsyncDisposable
                 services.ConfigureHttpClientDefaults(http => http.ConfigurePrimaryHttpMessageHandler(() => _upstream)));
         });
 
-        var http = _host.CreateClient();
+        var http = host.CreateClient();
         var options = new HttpClientTransportOptions { Endpoint = new Uri(http.BaseAddress!, "/mcp") };
         return await McpClient.CreateAsync(new HttpClientTransport(options, http, ownsHttpClient: true), cancellationToken: Token);
     }
