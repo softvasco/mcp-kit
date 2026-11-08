@@ -25,7 +25,9 @@ public class ToolSchemaSnapshotTests
     [Fact]
     public async Task Petstore_tools_generated_from_openapi()
     {
-        await using var host = new WebApplicationFactory<UpstreamOptions>().WithWebHostBuilder(web =>
+        // disposing the base factory also disposes the one WithWebHostBuilder made from it
+        await using var factory = new WebApplicationFactory<UpstreamOptions>();
+        var host = factory.WithWebHostBuilder(web =>
         {
             web.UseSetting("Upstream:Document", Petstore);
             web.UseSetting("Upstream:BaseAddress", "https://petstore.example/api/v3");
