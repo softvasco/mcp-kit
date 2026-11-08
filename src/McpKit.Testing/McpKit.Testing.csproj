@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Call MCP tools from tests without an LLM: connect a client to an in-process host and get each tool's JSON back.</Description>
+    <PackageTags>mcp;model-context-protocol;testing;aspnetcore;ai-agents</PackageTags>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" />
+  </ItemGroup>
+</Project>
