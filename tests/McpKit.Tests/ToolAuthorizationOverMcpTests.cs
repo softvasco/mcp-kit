@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text.Encodings.Web;
+using McpKit.Testing;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -76,8 +77,7 @@ public class ToolAuthorizationOverMcpTests
     {
         var http = app.GetTestClient();
         http.DefaultRequestHeaders.Add(ScopesHeader.Header, scopes);
-        var options = new HttpClientTransportOptions { Endpoint = new Uri(http.BaseAddress!, "/mcp") };
-        return await McpClient.CreateAsync(new HttpClientTransport(options, http, ownsHttpClient: true), cancellationToken: Token);
+        return await McpTestClient.ConnectAsync(http, cancellationToken: Token);
     }
 
     // stands in for a bearer token: the scopes come straight from a header

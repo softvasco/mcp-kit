@@ -1,5 +1,6 @@
 using System.Text.Json;
 using McpKit.LedgerSample;
+using McpKit.Testing;
 using Microsoft.AspNetCore.Mvc.Testing;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
@@ -83,7 +84,6 @@ public sealed class LedgerSampleTests : IAsyncDisposable
     private async Task<McpClient> Connect()
     {
         var http = _host.CreateClient();
-        var options = new HttpClientTransportOptions { Endpoint = new Uri(http.BaseAddress!, "/mcp") };
-        return await McpClient.CreateAsync(new HttpClientTransport(options, http, ownsHttpClient: true), cancellationToken: Token);
+        return await McpTestClient.ConnectAsync(http, cancellationToken: Token);
     }
 }

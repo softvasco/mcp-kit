@@ -1,4 +1,5 @@
 using System.Text.Json;
+using McpKit.Testing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
@@ -76,7 +77,6 @@ public class ToolRedactionOverMcpTests
     private static async Task<McpClient> Connect(WebApplication app)
     {
         var http = app.GetTestClient();
-        var options = new HttpClientTransportOptions { Endpoint = new Uri(http.BaseAddress!, "/mcp") };
-        return await McpClient.CreateAsync(new HttpClientTransport(options, http, ownsHttpClient: true), cancellationToken: Token);
+        return await McpTestClient.ConnectAsync(http, cancellationToken: Token);
     }
 }

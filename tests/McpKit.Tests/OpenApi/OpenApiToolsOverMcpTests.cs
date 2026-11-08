@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using McpKit.OpenApi;
+using McpKit.Testing;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -128,8 +129,7 @@ public sealed class OpenApiToolsOverMcpTests : IDisposable
     private static async Task<McpClient> Connect(WebApplication app)
     {
         var http = app.GetTestClient();
-        var options = new HttpClientTransportOptions { Endpoint = new Uri(http.BaseAddress!, "/mcp") };
-        return await McpClient.CreateAsync(new HttpClientTransport(options, http, ownsHttpClient: true), cancellationToken: Token);
+        return await McpTestClient.ConnectAsync(http, cancellationToken: Token);
     }
 
     private sealed class StubUpstream : IDisposable
