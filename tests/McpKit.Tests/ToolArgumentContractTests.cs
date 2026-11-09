@@ -1,6 +1,7 @@
 using System.Text.Json;
 using McpKit.LedgerSample;
 using McpKit.Testing;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using ModelContextProtocol.Client;
 
@@ -66,6 +67,25 @@ public sealed class ToolArgumentContractTests : IAsyncDisposable
         var arguments = new Dictionary<string, object?> { ["id"] = AccountReadModel.Lisbon, ["take"] = 1.5 };
 
         Assert.Equal("must be a whole number", await Problem(client, "get_statement", arguments, "take"));
+    }
+
+    [Theory]
+    [InlineData("Development", "take")]
+    [InlineData("Production", null)]
+    public async Task A_value_the_binding_rejects_still_comes_back_as_invalid_arguments(string environment, string? detailMentions)
+    {
+        var host = _host.WithWebHostBuilder(web => web.UseEnvironment(environment));
+        await using var client = await McpTestClient.ConnectAsync(host.CreateClient(), cancellationToken: Token);
+        var arguments = new Dictionary<string, object?> { ["id"] = AccountReadModel.Lisbon, ["take"] = 9_999_999_999 };
+
+        var error = await Assert.ThrowsAsync<McpToolCallException>(() => client.CallToolForJsonAsync("get_statement", arguments, Token));
+
+        using var json = JsonDocument.Parse(error.ErrorText!);
+        Assert.Equal("tool.invalid_arguments", json.RootElement.GetProperty("code").GetString());
+        if (detailMentions is not null)
+        {
+            Assert.Contains(detailMentions, json.RootElement.GetProperty("detail").GetString(), StringComparison.Ordinal);
+        }
     }
 
     public async ValueTask DisposeAsync() => await _host.DisposeAsync();
