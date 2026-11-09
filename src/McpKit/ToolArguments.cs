@@ -13,12 +13,12 @@ internal static class ToolArguments
 
         if (schema.TryGetProperty("required", out var required))
         {
-            foreach (var name in required.EnumerateArray().Select(r => r.GetString()!))
+            var missing = required.EnumerateArray()
+                .Select(r => r.GetString()!)
+                .Where(name => !arguments.TryGetValue(name, out var value) || value.ValueKind == JsonValueKind.Null);
+            foreach (var name in missing)
             {
-                if (!arguments.TryGetValue(name, out var value) || value.ValueKind == JsonValueKind.Null)
-                {
-                    problems[name] = "is required";
-                }
+                problems[name] = "is required";
             }
         }
 
