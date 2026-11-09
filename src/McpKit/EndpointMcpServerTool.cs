@@ -49,6 +49,12 @@ internal sealed class EndpointMcpServerTool(EndpointTool tool) : McpServerTool
             return (ToolResults.RateLimited(retryAfter), ToolCallOutcome.RateLimited, null);
         }
 
+        // checked before a confirmation token is issued, so nobody is asked to approve a call that can't run
+        if (ToolArguments.Problems(ProtocolTool.InputSchema, call) is { Count: > 0 } problems)
+        {
+            return (ToolResults.InvalidArguments(problems), ToolCallOutcome.Failed, null);
+        }
+
         if (tool.Endpoint.Metadata.GetMetadata<McpToolConfirmationMetadata>() is { } confirmation)
         {
             var confirmations = services.GetRequiredService<ToolConfirmations>();
