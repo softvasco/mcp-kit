@@ -112,7 +112,20 @@ dotnet run --project samples/McpKit.Sample
 
 [docs/clients.md](docs/clients.md) has the setup for VS Code, the MCP Inspector, the C# client and curl.
 
-The tests connect to the sample through the official client over `WebApplicationFactory`, so the whole path from HTTP request to tool result runs in-process without an LLM.
+The tests connect to the sample through the official client over `WebApplicationFactory`, so the whole path from HTTP request to tool result runs in-process without an LLM. `McpKit.Testing` wraps that for your own server:
+
+```csharp
+[Fact]
+public async Task Ledger_sample_tools()
+{
+    await using var host = new WebApplicationFactory<AccountReadModel>();
+    await using var client = await McpTestClient.ConnectAsync(host.CreateClient(), cancellationToken: Token);
+
+    await McpToolSnapshot.MatchAsync(client, "ledger-sample", Token);
+}
+```
+
+That test fails when a tool's name, description or schema changes. [docs/testing.md](docs/testing.md) covers calling tools, testing errors and what to check.
 
 ### Account read model sample
 
