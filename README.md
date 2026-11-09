@@ -11,7 +11,7 @@ Work in progress. Endpoints marked with `.AsMcpTool()` or `.AsMcpWriteTool()` ar
 
 Most of the APIs that an AI agent should be able to call already exist. They have route handlers, request types, validation, auth, and a team that owns them. Writing a second set of tool classes by hand for MCP means two definitions of the same operation that drift apart, and tools that quietly skip the auth and validation the HTTP endpoint had.
 
-McpKit reads what ASP.NET Core already knows about an endpoint (route, parameters, request type, metadata) and publishes it as an MCP tool. Nothing is exposed unless the endpoint opts in. A tool call runs the endpoint's own request delegate in-process, so binding, filters and validation are the same as over HTTP, and errors come back as the endpoint's problem details. The endpoint's authorization policy decides who can see and call the tool.
+McpKit reads what ASP.NET Core already knows about an endpoint (route, parameters, request type, metadata) and publishes it as an MCP tool. Nothing is exposed unless the endpoint opts in. A tool call runs the endpoint's own request delegate in-process, so binding, filters and validation are the same as over HTTP, and errors come back as the endpoint's problem details. Arguments are checked against the tool's input schema before that, so a missing or mistyped one comes back as `tool.invalid_arguments` with the argument's name, not as a generic failure. The endpoint's authorization policy decides who can see and call the tool.
 
 ## How it fits
 

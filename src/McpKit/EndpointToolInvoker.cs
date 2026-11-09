@@ -86,7 +86,21 @@ public static class EndpointToolInvoker
         await using var body = new MemoryStream();
         context.Response.Body = body;
 
-        await handler(context);
+        try
+        {
+            await handler(context);
+        }
+        catch (BadHttpRequestException bad)
+        {
+            // thrown in Development; the schema check can't catch everything, like a whole number too big for an int
+            return InvalidArguments(bad.Message);
+        }
+
+        // outside Development the same binding failure is an empty 400, which tells the model nothing
+        if (context.Response.StatusCode == StatusCodes.Status400BadRequest && body.Length == 0)
+        {
+            return InvalidArguments(null);
+        }
 
         return new EndpointToolResponse(context.Response.StatusCode, context.Response.ContentType, Encoding.UTF8.GetString(body.ToArray()));
     }
@@ -121,6 +135,15 @@ public static class EndpointToolInvoker
             ? Refused(StatusCodes.Status403Forbidden, "tool.forbidden", "The caller is not allowed to use this tool.")
             : Refused(StatusCodes.Status401Unauthorized, "tool.unauthenticated", "The caller is not signed in.");
     }
+
+    private static EndpointToolResponse InvalidArguments(string? detail) =>
+        new(StatusCodes.Status400BadRequest, "application/problem+json", JsonSerializer.Serialize(new
+        {
+            title = "The endpoint couldn't read the arguments. Check them against the tool's input schema.",
+            status = StatusCodes.Status400BadRequest,
+            code = "tool.invalid_arguments",
+            detail,
+        }));
 
     private static EndpointToolResponse Refused(int status, string code, string title) =>
         new(status, "application/problem+json", JsonSerializer.Serialize(new { title, status, code }));

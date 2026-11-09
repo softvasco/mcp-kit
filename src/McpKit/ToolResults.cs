@@ -22,6 +22,14 @@ internal static class ToolResults
     public static CallToolResult Refused(string code, string title) =>
         Text(JsonSerializer.Serialize(new { title, code }), isError: true);
 
+    public static CallToolResult InvalidArguments(Dictionary<string, string> problems) =>
+        Text(JsonSerializer.Serialize(new Dictionary<string, object>
+        {
+            ["title"] = "The arguments don't match the tool's input schema. Fix them and call again.",
+            ["code"] = "tool.invalid_arguments",
+            ["errors"] = problems,
+        }), isError: true);
+
     // whole seconds, rounded up, so a client that waits exactly that long gets in
     public static CallToolResult RateLimited(TimeSpan retryAfter) =>
         Text(JsonSerializer.Serialize(new Dictionary<string, object>
