@@ -28,10 +28,22 @@ public static class McpKitServiceCollectionExtensions
             new ConfigureOptions<McpServerOptions>(server =>
             {
                 server.ToolCollection ??= [];
-                var tools = provider.GetRequiredService<EndpointToolCatalog>().Discover().Where(t => options.AllowWriteTools || !t.ChangesState);
+                var catalog = provider.GetRequiredService<EndpointToolCatalog>();
+                var tools = catalog.Discover().Where(t => options.AllowWriteTools || !t.ChangesState);
                 foreach (var tool in tools)
                 {
                     server.ToolCollection.Add(new EndpointMcpServerTool(tool));
+                }
+
+                // only a host with resources should tell clients it has any
+                var resources = catalog.DiscoverResources(options.ResourceScheme);
+                if (resources.Count > 0)
+                {
+                    server.ResourceCollection ??= [];
+                    foreach (var resource in resources)
+                    {
+                        server.ResourceCollection.Add(new EndpointMcpServerResource(resource));
+                    }
                 }
             }));
 

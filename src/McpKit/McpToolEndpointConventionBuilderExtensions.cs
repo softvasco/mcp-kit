@@ -12,6 +12,14 @@ public static class McpToolEndpointConventionBuilderExtensions
         return builder.WithMetadata(new McpToolMetadata(name));
     }
 
+    /// <summary>Publishes this GET endpoint as a resource that clients read by URI.</summary>
+    public static TBuilder AsMcpResource<TBuilder>(this TBuilder builder, string? name = null)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.WithMetadata(new McpResourceMetadata(name));
+    }
+
     /// <summary>Publishes this endpoint as a tool that changes state.</summary>
     public static TBuilder AsMcpWriteTool<TBuilder>(this TBuilder builder, string? name = null)
         where TBuilder : IEndpointConventionBuilder
