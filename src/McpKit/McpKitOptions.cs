@@ -14,6 +14,9 @@ public sealed class McpKitOptions
     // no default: the right number depends on the API, and a guess blocks real work or does nothing
     public ToolRateLimit? RateLimit { get; set; }
 
+    /// <summary>The scheme of resource URIs, as in api://accounts/{id}.</summary>
+    public string ResourceScheme { get; set; } = "api";
+
     /// <summary>Fields masked in every tool's output, such as iban, name or email.</summary>
     public ToolRedaction Redaction { get; } = new();
 }
