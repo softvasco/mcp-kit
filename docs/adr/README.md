@@ -14,3 +14,4 @@
 | [0010](0010-redact-fields-in-tool-output.md) | Redact fields in tool output by name or path | Accepted |
 | [0011](0011-upstream-credentials-not-token-passthrough.md) | Upstream credentials are picked per caller, never passed through | Accepted |
 | [0012](0012-generated-vs-hand-written-tools.md) | Generated tools for APIs as they are, hand-written ones for what an agent needs | Accepted |
+| [0013](0013-resources-from-get-endpoints.md) | Resources from GET endpoints, read through the same pipeline as tools | Accepted |

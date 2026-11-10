@@ -102,6 +102,16 @@ app.MapPost("/transfers", Transfer)
     .WithMcpRateLimit(5, TimeSpan.FromMinutes(1));
 ```
 
+A tool is something the model decides to call. A resource is something the user picks and attaches, like an account or a page of a statement. Mark a GET endpoint with `.AsMcpResource()` and it is listed as a URI template, with its query parameters for paging. A read runs the endpoint with the same authorization and redaction as a tool call, and a 404 comes back as resource not found ([ADR 0013](docs/adr/0013-resources-from-get-endpoints.md)):
+
+```csharp
+app.MapGet("/accounts/{id}/statement", (string id, int page = 1, int pageSize = 50) => /* ... */)
+    .WithName("GetStatement")
+    .AsMcpResource();
+
+// listed as api://accounts/{id}/statement{?page,pageSize}
+```
+
 `AddMcpKit` registers the MCP server with the streamable HTTP transport, stateless by default so the host scales out like any other API. `MapMcpKit` maps it at `/mcp` (change it with `options.Path`). The sample in [samples/McpKit.Sample](samples/McpKit.Sample) has one hand-written tool that returns the server time.
 
 To run it and connect from any MCP client:
