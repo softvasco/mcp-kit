@@ -32,6 +32,13 @@ internal sealed class EndpointMcpServerResource(EndpointResource resource) : Mcp
 
         var uri = request.Params?.Uri ?? throw new McpProtocolException("The read has no URI.", McpErrorCode.InvalidParams);
         var match = resource.Uri.Match(uri) ?? throw new McpProtocolException($"'{uri}' is not a {resource.Name} URI.", McpErrorCode.ResourceNotFound);
+        if (match.UnknownQuery.Count > 0)
+        {
+            var takes = resource.Uri.Query.Count == 0 ? "no query parameters" : string.Join(", ", resource.Uri.Query);
+            throw new McpProtocolException(
+                $"{resource.Name} doesn't take {string.Join(", ", match.UnknownQuery)}. It takes {takes}.", McpErrorCode.InvalidParams);
+        }
+
         var services = request.Services ?? throw new InvalidOperationException("The MCP request has no service provider.");
         var user = request.User ?? new ClaimsPrincipal(new ClaimsIdentity());
 
@@ -39,10 +46,25 @@ internal sealed class EndpointMcpServerResource(EndpointResource resource) : Mcp
         var response = await EndpointToolInvoker.InvokeAsync(endpoint, match.Arguments, services, user, cancellationToken);
         var redaction = services.GetRequiredService<McpKitOptions>().Redaction
             .CombinedWith(resource.Endpoint.Metadata.GetMetadata<ToolRedaction>());
+        var text = ToolOutput.Format(response, redaction);
+
+        // a read has no error result like a tool call, so the endpoint's problem goes in a protocol error
+        if (!response.IsSuccess)
+        {
+            throw new McpProtocolException(text, ErrorCode(response.StatusCode));
+        }
 
         return new ReadResourceResult
         {
-            Contents = [new TextResourceContents { Uri = uri, MimeType = Json, Text = ToolOutput.Format(response, redaction) }],
+            Contents = [new TextResourceContents { Uri = uri, MimeType = Json, Text = text }],
         };
     }
+
+    private static McpErrorCode ErrorCode(int status) => status switch
+    {
+        StatusCodes.Status404NotFound => McpErrorCode.ResourceNotFound,
+        StatusCodes.Status400BadRequest or StatusCodes.Status422UnprocessableEntity => McpErrorCode.InvalidParams,
+        < 500 => McpErrorCode.InvalidRequest,
+        _ => McpErrorCode.InternalError,
+    };
 }

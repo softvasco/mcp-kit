@@ -21,9 +21,8 @@ public class EndpointResourcesOverMcpTests
         await using var app = await StartHost();
         await using var client = await McpTestClient.ConnectAsync(app.GetTestClient(), cancellationToken: Token);
 
-        var template = Assert.Single(await client.ListResourceTemplatesAsync(cancellationToken: Token));
+        var template = Assert.Single(await client.ListResourceTemplatesAsync(cancellationToken: Token), t => t.Name == "get_statement");
 
-        Assert.Equal("get_statement", template.Name);
         Assert.Equal("api://accounts/{id}/statement{?page,pageSize}", template.UriTemplate);
         Assert.Equal("application/json", template.ProtocolResourceTemplate.MimeType);
     }
@@ -57,6 +56,56 @@ public class EndpointResourcesOverMcpTests
     }
 
     [Fact]
+    public async Task A_404_from_the_endpoint_is_resource_not_found_with_the_problem_text()
+    {
+        await using var app = await StartHost();
+        await using var client = await McpTestClient.ConnectAsync(app.GetTestClient(), cancellationToken: Token);
+
+        var error = await Assert.ThrowsAsync<McpProtocolException>(
+            () => client.ReadResourceAsync("api://accounts/missing/statement", cancellationToken: Token).AsTask());
+
+        Assert.Equal(McpErrorCode.ResourceNotFound, error.ErrorCode);
+        Assert.Contains("account.not_found", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_query_parameter_the_endpoint_does_not_take_is_refused_before_it_runs()
+    {
+        await using var app = await StartHost();
+        await using var client = await McpTestClient.ConnectAsync(app.GetTestClient(), cancellationToken: Token);
+
+        var error = await Assert.ThrowsAsync<McpProtocolException>(
+            () => client.ReadResourceAsync("api://accounts/acc-4471/statement?sort=desc", cancellationToken: Token).AsTask());
+
+        Assert.Equal(McpErrorCode.InvalidParams, error.ErrorCode);
+        Assert.Contains("sort", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_page_that_is_not_a_number_is_invalid_params()
+    {
+        await using var app = await StartHost();
+        await using var client = await McpTestClient.ConnectAsync(app.GetTestClient(), cancellationToken: Token);
+
+        var error = await Assert.ThrowsAsync<McpProtocolException>(
+            () => client.ReadResourceAsync("api://accounts/acc-4471/statement?page=two", cancellationToken: Token).AsTask());
+
+        Assert.Equal(McpErrorCode.InvalidParams, error.ErrorCode);
+    }
+
+    [Fact]
+    public async Task Resource_contents_are_redacted_like_tool_output()
+    {
+        await using var app = await StartHost(options => options.Redaction.KeepLast("iban", 4));
+        await using var client = await McpTestClient.ConnectAsync(app.GetTestClient(), cancellationToken: Token);
+
+        var result = await client.ReadResourceAsync("api://accounts/acc-4471", cancellationToken: Token);
+
+        var account = JsonDocument.Parse(Assert.IsType<TextResourceContents>(Assert.Single(result.Contents)).Text).RootElement;
+        Assert.Equal("***0154", account.GetProperty("iban").GetString());
+    }
+
+    [Fact]
     public async Task A_host_without_resources_does_not_offer_any()
     {
         var builder = WebApplication.CreateBuilder();
@@ -71,17 +120,21 @@ public class EndpointResourcesOverMcpTests
         Assert.Null(client.ServerCapabilities.Resources);
     }
 
-    private static async Task<WebApplication> StartHost()
+    private static async Task<WebApplication> StartHost(Action<McpKitOptions>? configure = null)
     {
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.UseTestServer();
-        builder.Services.AddMcpKit();
+        builder.Services.AddMcpKit(configure);
 
         var app = builder.Build();
-        app.MapGet("/accounts/{id}/statement", (string id, int page = 1, int pageSize = 2) =>
-                Results.Ok(new { id, page, lines = Lines.Skip((page - 1) * pageSize).Take(pageSize), total = Lines.Length }))
+        app.MapGet("/accounts/{id}/statement", (string id, int page = 1, int pageSize = 2) => id == "missing"
+                ? Results.Problem(statusCode: 404, title: "No such account.", extensions: new Dictionary<string, object?> { ["code"] = "account.not_found" })
+                : Results.Ok(new { id, page, lines = Lines.Skip((page - 1) * pageSize).Take(pageSize), total = Lines.Length }))
             .WithName("GetStatement")
             .WithSummary("Statement lines for an account, one page at a time.")
+            .AsMcpResource();
+        app.MapGet("/accounts/{id}", (string id) => Results.Ok(new { id, iban = "PT50000201231234567890154" }))
+            .WithName("GetAccount")
             .AsMcpResource();
         app.MapMcpKit();
 
