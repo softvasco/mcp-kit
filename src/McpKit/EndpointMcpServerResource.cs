@@ -31,6 +31,16 @@ internal sealed class EndpointMcpServerResource(EndpointResource resource) : Mcp
         ArgumentNullException.ThrowIfNull(request);
 
         var uri = request.Params?.Uri ?? throw new McpProtocolException("The read has no URI.", McpErrorCode.InvalidParams);
+        var services = request.Services ?? throw new InvalidOperationException("The MCP request has no service provider.");
+        var user = request.User ?? new ClaimsPrincipal(new ClaimsIdentity());
+
+        return new ReadResourceResult { Contents = [await ReadAsync(resource, uri, services, user, cancellationToken)] };
+    }
+
+    /// <summary>Runs the endpoint behind a resource URI, as a read or for a prompt that attaches it.</summary>
+    internal static async Task<TextResourceContents> ReadAsync(
+        EndpointResource resource, string uri, IServiceProvider services, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
         var match = resource.Uri.Match(uri) ?? throw new McpProtocolException($"'{uri}' is not a {resource.Name} URI.", McpErrorCode.ResourceNotFound);
         if (match.UnknownQuery.Count > 0)
         {
@@ -38,9 +48,6 @@ internal sealed class EndpointMcpServerResource(EndpointResource resource) : Mcp
             throw new McpProtocolException(
                 $"{resource.Name} doesn't take {string.Join(", ", match.UnknownQuery)}. It takes {takes}.", McpErrorCode.InvalidParams);
         }
-
-        var services = request.Services ?? throw new InvalidOperationException("The MCP request has no service provider.");
-        var user = request.User ?? new ClaimsPrincipal(new ClaimsIdentity());
 
         var endpoint = new EndpointTool(resource.Name, resource.Description, HttpMethods.Get, resource.Endpoint);
         var response = await EndpointToolInvoker.InvokeAsync(endpoint, match.Arguments, services, user, cancellationToken);
@@ -54,10 +61,7 @@ internal sealed class EndpointMcpServerResource(EndpointResource resource) : Mcp
             throw new McpProtocolException(text, ErrorCode(response.StatusCode));
         }
 
-        return new ReadResourceResult
-        {
-            Contents = [new TextResourceContents { Uri = uri, MimeType = Json, Text = text }],
-        };
+        return new TextResourceContents { Uri = uri, MimeType = Json, Text = text };
     }
 
     private static McpErrorCode ErrorCode(int status) => status switch

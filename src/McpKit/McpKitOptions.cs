@@ -19,4 +19,7 @@ public sealed class McpKitOptions
 
     /// <summary>Fields masked in every tool's output, such as iban, name or email.</summary>
     public ToolRedaction Redaction { get; } = new();
+
+    /// <summary>Prompts a client can offer its user, like "review account {account_id}".</summary>
+    public McpPromptTemplates Prompts { get; } = new();
 }

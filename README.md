@@ -112,6 +112,16 @@ app.MapGet("/accounts/{id}/statement", (string id, int page = 1, int pageSize = 
 // listed as api://accounts/{id}/statement{?page,pageSize}
 ```
 
+Prompts are the third thing a server can offer: text the user picks from a menu in the client. Register them on the options; each `{placeholder}` becomes a required argument, and a prompt can attach a resource, which is read as the user who asked for the prompt ([ADR 0014](docs/adr/0014-prompt-templates-from-code.md)):
+
+```csharp
+builder.Services.AddMcpKit(options => options.Prompts.Add(
+    "review_statement",
+    "Review an account's statement",
+    "Go through the statement below and list anything that looks unusual for account {account_id}.",
+    attach: "api://accounts/{account_id}/statement"));
+```
+
 `AddMcpKit` registers the MCP server with the streamable HTTP transport, stateless by default so the host scales out like any other API. `MapMcpKit` maps it at `/mcp` (change it with `options.Path`). The sample in [samples/McpKit.Sample](samples/McpKit.Sample) has one hand-written tool that returns the server time.
 
 To run it and connect from any MCP client:
