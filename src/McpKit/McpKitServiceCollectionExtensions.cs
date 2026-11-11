@@ -45,6 +45,15 @@ public static class McpKitServiceCollectionExtensions
                         server.ResourceCollection.Add(new EndpointMcpServerResource(resource));
                     }
                 }
+
+                if (options.Prompts.Count > 0)
+                {
+                    server.PromptCollection ??= [];
+                    foreach (var prompt in options.Prompts)
+                    {
+                        server.PromptCollection.Add(new TemplateMcpServerPrompt(prompt));
+                    }
+                }
             }));
 
         // tools carry their endpoint's metadata, so the SDK's filters hide what the caller's policy refuses
