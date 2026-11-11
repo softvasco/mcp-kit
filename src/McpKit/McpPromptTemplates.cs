@@ -9,9 +9,9 @@ public sealed class McpPromptTemplates : IEnumerable<McpPromptTemplate>
 
     public int Count => _templates.Count;
 
-    public McpPromptTemplates Add(string name, string description, string text)
+    public McpPromptTemplates Add(string name, string description, string text, string? attach = null)
     {
-        var template = McpPromptTemplate.Create(name, description, text);
+        var template = McpPromptTemplate.Create(name, description, text, attach);
         if (!_templates.TryAdd(template.Name, template))
         {
             throw new ArgumentException($"A prompt named '{name}' is already registered.", nameof(name));

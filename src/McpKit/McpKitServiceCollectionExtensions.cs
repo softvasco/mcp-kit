@@ -51,7 +51,7 @@ public static class McpKitServiceCollectionExtensions
                     server.PromptCollection ??= [];
                     foreach (var prompt in options.Prompts)
                     {
-                        server.PromptCollection.Add(new TemplateMcpServerPrompt(prompt));
+                        server.PromptCollection.Add(new TemplateMcpServerPrompt(prompt, resources));
                     }
                 }
             }));
