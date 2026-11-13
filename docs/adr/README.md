@@ -16,3 +16,4 @@
 | [0012](0012-generated-vs-hand-written-tools.md) | Generated tools for APIs as they are, hand-written ones for what an agent needs | Accepted |
 | [0013](0013-resources-from-get-endpoints.md) | Resources from GET endpoints, read through the same pipeline as tools | Accepted |
 | [0014](0014-prompt-templates-from-code.md) | Prompt templates registered from code, with an optional attached resource | Accepted |
+| [0015](0015-tool-telemetry-on-top-of-the-sdk.md) | Tool call telemetry on top of the SDK's, not next to it | Accepted |

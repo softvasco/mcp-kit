@@ -19,6 +19,7 @@ internal static class AuditedToolCall
     {
         var clock = services.GetRequiredService<TimeProvider>();
         var audit = services.GetRequiredService<IToolCallAudit>();
+        var telemetry = services.GetRequiredService<ToolCallTelemetry>();
         var startedAt = clock.GetUtcNow();
         var started = clock.GetTimestamp();
 
@@ -35,12 +36,16 @@ internal static class AuditedToolCall
         try
         {
             var (result, outcome, status) = await run();
-            await audit.RecordAsync(Record(outcome, status, result), cancellationToken);
+            var record = Record(outcome, status, result);
+            telemetry.Record(record);
+            await audit.RecordAsync(record, cancellationToken);
             return result;
         }
         catch (Exception) when (!cancellationToken.IsCancellationRequested)
         {
-            await audit.RecordAsync(Record(ToolCallOutcome.Failed, null, null), CancellationToken.None);
+            var record = Record(ToolCallOutcome.Failed, null, null);
+            telemetry.Record(record);
+            await audit.RecordAsync(record, CancellationToken.None);
             throw;
         }
     }
