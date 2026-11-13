@@ -92,6 +92,14 @@ An IBAN then reaches the model as `***0154`.
 
 Every tool call is recorded: tool, caller, a SHA-256 of the arguments, outcome, status, result size and duration, never the argument values. By default that is one log entry per call (event `ToolCalled`); register your own `IToolCallAudit` to write them somewhere else ([ADR 0008](docs/adr/0008-audit-every-tool-call.md)).
 
+The same calls show up in OpenTelemetry. The SDK already traces and times each `tools/call`; McpKit adds the outcome (`succeeded`, `failed`, `confirmation_requested`, `confirmation_refused`, `rate_limited`) and the endpoint's status to that span, plus a `mcpkit.tool.calls` counter and a `mcpkit.tool.duration` histogram per tool and outcome. Add the meter to collect them ([ADR 0015](docs/adr/0015-tool-telemetry-on-top-of-the-sdk.md)):
+
+```csharp
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing.AddSource("Experimental.ModelContextProtocol"))
+    .WithMetrics(metrics => metrics.AddMeter(McpKitTelemetry.MeterName));
+```
+
 An agent in a loop calls the same tool far faster than a person would. Set a limit per client and tool for the whole host, and override it where a tool needs its own. A call over the limit doesn't reach the endpoint and returns `tool.rate_limited` with `retry_after_seconds`. Counts are kept in memory per instance, and there is no default because the right number depends on the API ([ADR 0009](docs/adr/0009-rate-limits-per-client-and-tool.md)):
 
 ```csharp
