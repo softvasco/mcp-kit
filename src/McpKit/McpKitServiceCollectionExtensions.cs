@@ -22,6 +22,8 @@ public static class McpKitServiceCollectionExtensions
         services.AddSingleton<ToolConfirmations>();
         services.AddSingleton<ToolRateLimiter>();
         services.TryAddSingleton<IToolCallAudit, LoggerToolCallAudit>();
+        services.AddMetrics();
+        services.AddSingleton<ToolCallTelemetry>();
 
         // runs when the server is first built, after the host has mapped its endpoints
         services.AddSingleton<IConfigureOptions<McpServerOptions>>(provider =>
