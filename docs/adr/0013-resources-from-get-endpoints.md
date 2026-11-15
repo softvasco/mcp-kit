@@ -27,4 +27,4 @@ The SDK lets a host write resources by hand with `[McpServerResource]` methods. 
 - One endpoint can be a tool and a resource at once. The model can call it and the user can attach it, with one implementation behind both.
 - Reads are not audited or rate limited yet; those checks live in the tool call (ADR 0008, ADR 0009). A client reads resources when the user asks, not in a loop, so this matters less, but the same checks should move to a shared step when that changes.
 - Only templates are listed. There is no `resources/list` of concrete URIs, because listing every account is a query the API should page, not something the server should enumerate.
-- Change notifications (`resources/subscribe`) are not supported yet.
+- Change notifications (`resources/subscribe`) came later, in ADR 0016.
