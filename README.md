@@ -120,6 +120,17 @@ app.MapGet("/accounts/{id}/statement", (string id, int page = 1, int pageSize = 
 // listed as api://accounts/{id}/statement{?page,pageSize}
 ```
 
+On a stateful server (`options.Stateless = false`) a client can subscribe to a resource URI. McpKit can't tell when your data changes, so call the notifier after the write and every subscribed session gets `notifications/resources/updated` ([ADR 0016](docs/adr/0016-resource-change-notifications.md)):
+
+```csharp
+app.MapPost("/accounts/{id}/deposits", async (string id, Deposit deposit, IMcpResourceNotifier notifier, CancellationToken ct) =>
+{
+    // ... the write ...
+    await notifier.NotifyUpdatedAsync($"api://accounts/{id}", ct);
+    return Results.NoContent();
+});
+```
+
 Prompts are the third thing a server can offer: text the user picks from a menu in the client. Register them on the options; each `{placeholder}` becomes a required argument, and a prompt can attach a resource, which is read as the user who asked for the prompt ([ADR 0014](docs/adr/0014-prompt-templates-from-code.md)):
 
 ```csharp

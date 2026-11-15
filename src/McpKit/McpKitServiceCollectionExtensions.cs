@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using ModelContextProtocol;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
 namespace McpKit;
@@ -24,6 +26,8 @@ public static class McpKitServiceCollectionExtensions
         services.TryAddSingleton<IToolCallAudit, LoggerToolCallAudit>();
         services.AddMetrics();
         services.AddSingleton<ToolCallTelemetry>();
+        services.AddSingleton<ResourceSubscriptions>();
+        services.AddSingleton<IMcpResourceNotifier>(provider => provider.GetRequiredService<ResourceSubscriptions>());
 
         // runs when the server is first built, after the host has mapped its endpoints
         services.AddSingleton<IConfigureOptions<McpServerOptions>>(provider =>
@@ -46,6 +50,12 @@ public static class McpKitServiceCollectionExtensions
                     {
                         server.ResourceCollection.Add(new EndpointMcpServerResource(resource));
                     }
+
+                    // a stateless server has no session to send a notification on later
+                    if (!options.Stateless)
+                    {
+                        AllowSubscriptions(server, resources, provider.GetRequiredService<ResourceSubscriptions>());
+                    }
                 }
 
                 if (options.Prompts.Count > 0)
@@ -62,5 +72,38 @@ public static class McpKitServiceCollectionExtensions
         return services.AddMcpServer()
             .WithHttpTransport(transport => transport.Stateless = options.Stateless)
             .AddAuthorizationFilters();
+    }
+
+    private static void AllowSubscriptions(
+        McpServerOptions server, IReadOnlyList<EndpointResource> resources, ResourceSubscriptions subscriptions)
+    {
+        server.Capabilities ??= new ServerCapabilities();
+        server.Capabilities.Resources ??= new ResourcesCapability();
+        server.Capabilities.Resources.Subscribe = true;
+
+        server.Handlers.SubscribeToResourcesHandler = (request, _) =>
+        {
+            var uri = KnownUri(request.Params?.Uri, resources);
+            subscriptions.Subscribe(request.Server, uri);
+            return ValueTask.FromResult(new EmptyResult());
+        };
+        server.Handlers.UnsubscribeFromResourcesHandler = (request, _) =>
+        {
+            var uri = request.Params?.Uri ?? throw new McpProtocolException("The request has no URI.", McpErrorCode.InvalidParams);
+            subscriptions.Unsubscribe(request.Server, uri);
+            return ValueTask.FromResult(new EmptyResult());
+        };
+    }
+
+    private static string KnownUri(string? uri, IReadOnlyList<EndpointResource> resources)
+    {
+        if (string.IsNullOrWhiteSpace(uri))
+        {
+            throw new McpProtocolException("The request has no URI.", McpErrorCode.InvalidParams);
+        }
+
+        return resources.Any(r => r.Uri.Match(uri) is not null)
+            ? uri
+            : throw new McpProtocolException($"No resource has the URI '{uri}'.", McpErrorCode.ResourceNotFound);
     }
 }
