@@ -56,6 +56,8 @@ public class ResourceAuthorizationOverMcpTests
 
         Assert.Equal(McpErrorCode.InvalidRequest, error.ErrorCode);
         Assert.Equal(0, reads.Value);
+        Assert.Contains("not allowed to read api://accounts/acc-1", error.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("tool", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

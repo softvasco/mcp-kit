@@ -51,6 +51,17 @@ internal sealed class EndpointMcpServerResource(EndpointResource resource) : Mcp
 
         var endpoint = new EndpointTool(resource.Name, resource.Description, HttpMethods.Get, resource.Endpoint);
         var response = await EndpointToolInvoker.InvokeAsync(endpoint, match.Arguments, services, user, cancellationToken);
+
+        // the policy refusal is worded for tools, which reads oddly when a prompt attached a resource
+        if (response.RefusedByPolicy)
+        {
+            throw new McpProtocolException(
+                response.StatusCode == StatusCodes.Status401Unauthorized
+                    ? $"The caller must be signed in to read {uri}."
+                    : $"The caller is not allowed to read {uri}.",
+                McpErrorCode.InvalidRequest);
+        }
+
         var redaction = services.GetRequiredService<McpKitOptions>().Redaction
             .CombinedWith(resource.Endpoint.Metadata.GetMetadata<ToolRedaction>());
         var text = ToolOutput.Format(response, redaction);
