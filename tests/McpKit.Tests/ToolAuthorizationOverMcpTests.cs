@@ -1,13 +1,9 @@
-using System.Security.Claims;
-using System.Text.Encodings.Web;
 using McpKit.Testing;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using ModelContextProtocol;
 using ModelContextProtocol.Client;
 
@@ -78,25 +74,5 @@ public class ToolAuthorizationOverMcpTests
         var http = app.GetTestClient();
         http.DefaultRequestHeaders.Add(ScopesHeader.Header, scopes);
         return await McpTestClient.ConnectAsync(http, cancellationToken: Token);
-    }
-
-    // stands in for a bearer token: the scopes come straight from a header
-    private sealed class ScopesHeader(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
-        : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
-    {
-        public const string Name = "Scopes";
-        public const string Header = "X-Test-Scopes";
-
-        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
-        {
-            if (Request.Headers[Header].ToString() is not { Length: > 0 } scopes)
-            {
-                return Task.FromResult(AuthenticateResult.NoResult());
-            }
-
-            var claims = scopes.Split(' ').Select(s => new Claim("scope", s)).Append(new Claim(ClaimTypes.Name, "agent"));
-            var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, Name));
-            return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(principal, Name)));
-        }
     }
 }
