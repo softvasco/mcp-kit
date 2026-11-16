@@ -56,6 +56,8 @@ public class ResourceAuthorizationOverMcpTests
 
         Assert.Equal(McpErrorCode.InvalidRequest, error.ErrorCode);
         Assert.Equal(0, reads.Value);
+        Assert.Contains("not allowed to read api://accounts/acc-1", error.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("tool", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -68,6 +70,20 @@ public class ResourceAuthorizationOverMcpTests
         var result = await client.GetPromptAsync("review_account", new Dictionary<string, object?> { ["account_id"] = "acc-1" }, cancellationToken: Token);
 
         Assert.IsType<EmbeddedResourceBlock>(result.Messages[^1].Content);
+        Assert.Equal(1, reads.Value);
+    }
+
+    [Fact]
+    public async Task A_403_from_the_endpoint_itself_keeps_its_problem()
+    {
+        var reads = new ReadCount();
+        await using var app = await StartHost(reads, ReviewPrompt);
+        await using var client = await Connect(app, "accounts:read");
+
+        var error = await Assert.ThrowsAsync<McpProtocolException>(() =>
+            client.GetPromptAsync("review_account", new Dictionary<string, object?> { ["account_id"] = "acc-closed" }, cancellationToken: Token).AsTask());
+
+        Assert.Contains("The account is closed.", error.Message, StringComparison.Ordinal);
         Assert.Equal(1, reads.Value);
     }
 
@@ -88,7 +104,9 @@ public class ResourceAuthorizationOverMcpTests
         app.MapGet("/accounts/{id}", (string id) =>
             {
                 reads.Increment();
-                return Results.Ok(new { id, balance = 100.00m });
+                return id == "acc-closed"
+                    ? Results.Problem(statusCode: StatusCodes.Status403Forbidden, title: "The account is closed.")
+                    : Results.Ok(new { id, balance = 100.00m });
             })
             .RequireAuthorization(policy => policy.RequireClaim("scope", "accounts:read"))
             .WithName("GetAccount")

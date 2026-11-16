@@ -18,6 +18,7 @@ public sealed class ToolCallTelemetryOverMcpTests : IDisposable
 
     private readonly FakeTimeProvider _clock = new(new DateTimeOffset(2026, 11, 13, 20, 0, 0, TimeSpan.Zero));
     private readonly ConcurrentQueue<Activity> _spans = new();
+    private readonly SemaphoreSlim _spanStopped = new(0);
     private readonly ActivityListener _listener;
 
     public ToolCallTelemetryOverMcpTests()
@@ -26,7 +27,11 @@ public sealed class ToolCallTelemetryOverMcpTests : IDisposable
         {
             ShouldListenTo = _ => true,
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-            ActivityStopped = _spans.Enqueue,
+            ActivityStopped = span =>
+            {
+                _spans.Enqueue(span);
+                _spanStopped.Release();
+            },
         };
         ActivitySource.AddActivityListener(_listener);
     }
@@ -73,12 +78,36 @@ public sealed class ToolCallTelemetryOverMcpTests : IDisposable
 
         await client.CallToolAsync("deposit", Deposit(-5m), cancellationToken: Token);
 
-        Assert.Contains(_spans, span =>
+        Assert.True(await SpanStopped(span =>
             Equals(span.GetTagItem("mcpkit.tool.outcome"), "failed")
-            && Equals(span.GetTagItem("http.response.status_code"), StatusCodes.Status422UnprocessableEntity));
+            && Equals(span.GetTagItem("http.response.status_code"), StatusCodes.Status422UnprocessableEntity)));
     }
 
-    public void Dispose() => _listener.Dispose();
+    public void Dispose()
+    {
+        _listener.Dispose();
+        _spanStopped.Dispose();
+    }
+
+    // the server ends its span after writing the response, so the client can get there first
+    private async Task<bool> SpanStopped(Func<Activity, bool> match)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(10));
+        while (!_spans.Any(match))
+        {
+            try
+            {
+                await _spanStopped.WaitAsync(timeout.Token);
+            }
+            catch (OperationCanceledException) when (!Token.IsCancellationRequested)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     private static Dictionary<string, object?> Deposit(decimal amount) => new() { ["id"] = AccountId, ["amount"] = amount };
 

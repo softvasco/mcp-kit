@@ -146,7 +146,7 @@ public static class EndpointToolInvoker
         }));
 
     private static EndpointToolResponse Refused(int status, string code, string title) =>
-        new(status, "application/problem+json", JsonSerializer.Serialize(new { title, status, code }));
+        new(status, "application/problem+json", JsonSerializer.Serialize(new { title, status, code })) { RefusedByPolicy = true };
 
     internal static bool CarriesBody(RouteEndpoint endpoint) =>
         endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods is [var method, ..] && CarriesBody(method);
