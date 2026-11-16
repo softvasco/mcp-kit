@@ -70,7 +70,18 @@ public static class McpKitServiceCollectionExtensions
 
         // tools carry their endpoint's metadata, so the SDK's filters hide what the caller's policy refuses
         return services.AddMcpServer()
-            .WithHttpTransport(transport => transport.Stateless = options.Stateless)
+            .WithHttpTransport(transport =>
+            {
+                transport.Stateless = options.Stateless;
+                if (!options.Stateless)
+                {
+                    // the only hook that hands over the session itself; see ADR 0016
+#pragma warning disable MCPEXP002
+                    transport.RunSessionHandler = (context, server, cancellationToken) =>
+                        context.RequestServices.GetRequiredService<ResourceSubscriptions>().RunAsync(server, cancellationToken);
+#pragma warning restore MCPEXP002
+                }
+            })
             .AddAuthorizationFilters();
     }
 
