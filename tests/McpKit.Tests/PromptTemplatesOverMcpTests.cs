@@ -53,6 +53,19 @@ public class PromptTemplatesOverMcpTests
     }
 
     [Fact]
+    public async Task An_argument_that_is_not_a_string_is_an_invalid_params_error()
+    {
+        await using var app = await StartHost(o => o.Prompts.Add("review_account", "Review an account", "Review {account_id} for {period}."));
+        await using var client = await McpTestClient.ConnectAsync(app.GetTestClient(), cancellationToken: Token);
+
+        var error = await Assert.ThrowsAsync<McpProtocolException>(() => client.GetPromptAsync(
+            "review_account", new Dictionary<string, object?> { ["account_id"] = 4471, ["period"] = "2026-10" }, cancellationToken: Token).AsTask());
+
+        Assert.Equal(McpErrorCode.InvalidParams, error.ErrorCode);
+        Assert.Contains("takes account_id as a string, not Number", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task A_host_without_prompts_does_not_advertise_them()
     {
         await using var app = await StartHost(_ => { });

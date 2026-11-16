@@ -44,6 +44,36 @@ public class ResourceAuthorizationOverMcpTests
         Assert.Equal(0, reads.Value);
     }
 
+    [Fact]
+    public async Task A_prompt_attaching_the_resource_reads_it_as_the_caller()
+    {
+        var reads = new ReadCount();
+        await using var app = await StartHost(reads, ReviewPrompt);
+        await using var client = await Connect(app, "cards:read");
+
+        var error = await Assert.ThrowsAsync<McpProtocolException>(() =>
+            client.GetPromptAsync("review_account", new Dictionary<string, object?> { ["account_id"] = "acc-1" }, cancellationToken: Token).AsTask());
+
+        Assert.Equal(McpErrorCode.InvalidRequest, error.ErrorCode);
+        Assert.Equal(0, reads.Value);
+    }
+
+    [Fact]
+    public async Task A_prompt_attaching_the_resource_works_for_a_caller_with_the_scope()
+    {
+        var reads = new ReadCount();
+        await using var app = await StartHost(reads, ReviewPrompt);
+        await using var client = await Connect(app, "accounts:read");
+
+        var result = await client.GetPromptAsync("review_account", new Dictionary<string, object?> { ["account_id"] = "acc-1" }, cancellationToken: Token);
+
+        Assert.IsType<EmbeddedResourceBlock>(result.Messages[^1].Content);
+        Assert.Equal(1, reads.Value);
+    }
+
+    private static void ReviewPrompt(McpKitOptions options) =>
+        options.Prompts.Add("review_account", "Review an account", "Review account {account_id}.", "api://accounts/{account_id}");
+
     private static async Task<WebApplication> StartHost(ReadCount reads, Action<McpKitOptions>? configure = null)
     {
         var builder = WebApplication.CreateBuilder();
