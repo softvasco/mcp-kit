@@ -25,6 +25,33 @@ flowchart LR
     end
 ```
 
+## What happens on a tool call
+
+The endpoint runs in the same process, through its own request delegate, so a tool call never makes an HTTP request to itself. Every outcome, including a refusal, ends up in the audit log.
+
+```mermaid
+sequenceDiagram
+    participant C as MCP client
+    participant K as McpKit
+    participant E as endpoint
+    participant D as database
+    C->>K: tools/call deposit {id, amount}
+    K->>K: rate limit per caller and tool
+    K->>K: check arguments against the input schema
+    opt write tool that needs confirmation
+        K-->>C: confirmation_required + token (nothing ran)
+        C->>K: same call + confirmation_token
+    end
+    K->>K: build an HttpContext, run the endpoint's authorization policy
+    K->>E: request delegate (route values, headers, JSON body)
+    E->>D: your service's query or command
+    D-->>E: rows
+    E-->>K: status code and body
+    K->>K: redact fields, wrap the output as data
+    K->>K: audit record and tool metrics
+    K-->>C: tool result (isError when the status isn't 2xx)
+```
+
 ## Quickstart
 
 ```csharp
