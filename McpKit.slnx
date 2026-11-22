@@ -4,6 +4,9 @@
     <Project Path="src/McpKit/McpKit.csproj" />
     <Project Path="src/McpKit.OpenApi/McpKit.OpenApi.csproj" />
   </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/McpKit.LoadTest/McpKit.LoadTest.csproj" />
+  </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/McpKit.LedgerSample/McpKit.LedgerSample.csproj" />
     <Project Path="samples/McpKit.OpenApiGateway/McpKit.OpenApiGateway.csproj" />

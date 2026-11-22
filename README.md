@@ -260,7 +260,7 @@ That serves the eight read-only Petstore operations at `http://localhost:8080/mc
 
 ## Design notes
 
-Decisions are recorded in [docs/adr](docs/adr/README.md).
+Decisions are recorded in [docs/adr](docs/adr/README.md). What a tool call costs next to a plain HTTP call, from a load test with up to 64 clients, is in [docs/performance.md](docs/performance.md).
 
 ## License
 
